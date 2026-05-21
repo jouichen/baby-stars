@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>寶貝的好習慣集點卡</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #FF7B94;
+            --bg-color: #FFF5F7;
+        }
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            color: #4A4A4A;
+            user-select: none;
+        }
+        h1 { color: var(--primary-color); font-size: 2rem; margin-bottom: 5px; }
+        .subtitle { font-size: 1.1rem; color: #888; margin-bottom: 20px; }
+        
+        /* 任務卡片區 */
+        .task-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        .task-card {
+            background: white;
+            border: 3px solid #FFE0E6;
+            border-radius: 20px;
+            padding: 15px;
+            width: 100px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .task-card:active { transform: scale(0.9); }
+        .task-icon { font-size: 2.5rem; margin-bottom: 5px; }
+        .task-name { font-size: 1rem; font-weight: bold; }
+
+        /* 集點板區 */
+        .grid-container {
+            background: white;
+            border-radius: 25px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 0 10px 25px rgba(255, 123, 148, 0.15);
+            border: 4px dashed var(--primary-color);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .slot {
+            aspect-ratio: 1;
+            background: #F0F0F0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            border: 2px dashed #CCC;
+            transition: all 0.3s;
+        }
+        .slot.active {
+            background: #FFE3E8;
+            border: 2px solid var(--primary-color);
+            animation: pop 0.3s ease-in-out;
+        }
+        
+        /* 按鈕與重置 */
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 5px 10px rgba(255, 75, 110, 0.3);
+        }
+        .btn:active { transform: translateY(2px); }
+
+        @keyframes pop {
+            0% { transform: scale(0.5); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🌟 寶貝的集點大冒險 🌟</h1>
+    <div class="subtitle">集滿 5 個星星，就可以換一個冰淇淋（或看卡通）喔！</div>
+
+    <div class="task-container">
+        <div class="task-card" onclick="addPoint('🦷')">
+            <div class="task-icon">🦷</div>
+            <div class="task-name">乖乖刷牙</div>
+        </div>
+        <div class="task-card" onclick="addPoint('🥣')">
+            <div class="task-icon">🥣</div>
+            <div class="task-name">把飯吃光</div>
+        </div>
+        <div class="task-card" onclick="addPoint('🧸')">
+            <div class="task-icon">🧸</div>
+            <div class="task-name">收好玩具</div>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        <div class="grid" id="stampGrid">
+            <div class="slot">1</div>
+            <div class="slot">2</div>
+            <div class="slot">3</div>
+            <div class="slot">4</div>
+            <div class="slot">5</div>
+        </div>
+        <button class="btn" onclick="resetPoints()">重置集點卡</button>
+    </div>
+
+    <script>
+        const MAX_POINTS = 5;
+        let currentPoints = parseInt(localStorage.getItem('baby_points')) || 0;
+        
+        // 初始化網頁時載入現有點數
+        updateUI();
+
+        // 加點數的邏輯
+        function addPoint(icon) {
+            if (currentPoints >= MAX_POINTS) {
+                playTone(150, 'triangle', 0.3); // 已滿的提示音
+                alert("已經集滿囉！快去找爸爸媽媽換獎勵！");
+                return;
+            }
+
+            currentPoints++;
+            localStorage.setItem('baby_points', currentPoints);
+            updateUI();
+            
+            // 叮咚音效 (叮~咚~)
+            playTone(523.25, 'sine', 0.15); // C5
+            setTimeout(() => playTone(659.25, 'sine', 0.2), 150); // E5
+
+            // 檢查是否集滿
+            if (currentPoints === MAX_POINTS) {
+                setTimeout(() => {
+                    // 萬歲音效
+                    playTone(880, 'sine', 0.1); 
+                    setTimeout(() => playTone(1046.5, 'sine', 0.4), 100);
+                    
+                    // 噴發慶祝紙屑特效
+                    confetti({
+                        particleCount: 150,
+                        spread: 80,
+                        origin: { y: 0.6 }
+                    });
+                }, 500);
+            }
+        }
+
+        // 更新畫面顯示
+        function updateUI() {
+            const slots = document.querySelectorAll('.slot');
+            slots.forEach((slot, index) => {
+                if (index < currentPoints) {
+                    slot.classList.add('active');
+                    slot.innerText = '⭐'; // 蓋上星星章
+                } else {
+                    slot.classList.remove('active');
+                    slot.innerText = index + 1;
+                }
+            });
+        }
+
+        // 重置點數
+        function resetPoints() {
+            if(confirm("確定要清除點數，重新開始一張新的嗎？")) {
+                currentPoints = 0;
+                localStorage.setItem('baby_points', currentPoints);
+                updateUI();
+            }
+        }
+
+        // 逼真音效產生器（不需要音檔，直接用網頁瀏覽器頻率發聲）
+        function playTone(freq, type, duration) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = type;
+                oscillator.frequency.value = freq;
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime); // 音量
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("音效播放失敗", e);
+            }
+        }
+    </script>
+</body>
+</html>
