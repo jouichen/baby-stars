@@ -18,6 +18,8 @@
             text-align: center;
             color: #4A4A4A;
             user-select: none;
+            -webkit-user-select: none; /* 防止小孩長按文字跳出選單 */
+            touch-action: manipulation; /* 優化手機點擊延遲 */
         }
         h1 { color: var(--primary-color); font-size: 2rem; margin-bottom: 5px; }
         .subtitle { font-size: 1.1rem; color: #888; margin-bottom: 20px; }
@@ -38,11 +40,12 @@
             width: 100px;
             box-shadow: 0 8px 15px rgba(0,0,0,0.05);
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.1s;
+            -webkit-tap-highlight-color: transparent; /* 去除手機點擊時的醜藍色陰影 */
         }
         .task-card:active { transform: scale(0.9); }
-        .task-icon { font-size: 2.5rem; margin-bottom: 5px; }
-        .task-name { font-size: 1rem; font-weight: bold; }
+        .task-icon { font-size: 2.5rem; margin-bottom: 5px; pointer-events: none; }
+        .task-name { font-size: 1rem; font-weight: bold; pointer-events: none; }
 
         /* 集點板區 */
         .grid-container {
@@ -88,6 +91,7 @@
             cursor: pointer;
             font-weight: bold;
             box-shadow: 0 5px 10px rgba(255, 75, 110, 0.3);
+            -webkit-tap-highlight-color: transparent;
         }
         .btn:active { transform: translateY(2px); }
 
@@ -103,18 +107,18 @@
     <div class="subtitle">集滿 5 個星星，就可以換一個冰淇淋（或看卡通）喔！</div>
 
     <div class="task-container">
-        <div class="task-card" onclick="addPoint('🦷')">
+        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
             <div class="task-icon">🦷</div>
             <div class="task-name">乖乖刷牙</div>
-        </div>
-        <div class="task-card" onclick="addPoint('🥣')">
+        </button>
+        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
             <div class="task-icon">🥣</div>
             <div class="task-name">把飯吃光</div>
-        </div>
-        <div class="task-card" onclick="addPoint('🧸')">
+        </button>
+        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
             <div class="task-icon">🧸</div>
             <div class="task-name">收好玩具</div>
-        </div>
+        </button>
     </div>
 
     <div class="grid-container">
@@ -131,10 +135,17 @@
     <script>
         const MAX_POINTS = 5;
         let currentPoints = parseInt(localStorage.getItem('baby_points')) || 0;
+        let audioCtx = null; // 延遲初始化音訊，繞過 iOS 限制
         
         updateUI();
 
-        function addPoint(icon) {
+        // 點擊卡片加點
+        function addPoint() {
+            // 在使用者第一次點擊時，啟動音訊環境（解鎖 iOS 聲音限制）
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
             if (currentPoints >= MAX_POINTS) {
                 playTone(150, 'triangle', 0.3);
                 alert("已經集滿囉！快去找爸爸媽媽換獎勵！");
@@ -145,6 +156,7 @@
             localStorage.setItem('baby_points', currentPoints);
             updateUI();
             
+            // 叮咚音效
             playTone(523.25, 'sine', 0.15);
             setTimeout(() => playTone(659.25, 'sine', 0.2), 150);
 
@@ -153,6 +165,7 @@
                     playTone(880, 'sine', 0.1); 
                     setTimeout(() => playTone(1046.5, 'sine', 0.4), 100);
                     
+                    // 噴紙屑
                     confetti({
                         particleCount: 150,
                         spread: 80,
@@ -183,5 +196,31 @@
             }
         }
 
+        // 優化後的發聲器，即使失敗也不會卡死整個程式
         function playTone(freq, type, duration) {
             try {
+                if (!audioCtx) return;
+                // 確保音訊環境沒有被掛起（iOS 常見狀況）
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = type;
+                oscillator.frequency.value = freq;
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("音效播放被瀏覽器擋住，但不影響集點功能", e);
+            }
+        }
+    </script>
+</body>
+</html>
