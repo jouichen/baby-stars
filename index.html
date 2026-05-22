@@ -132,13 +132,11 @@
         const MAX_POINTS = 5;
         let currentPoints = parseInt(localStorage.getItem('baby_points')) || 0;
         
-        // 初始化網頁時載入現有點數
         updateUI();
 
-        // 加點數的邏輯
         function addPoint(icon) {
             if (currentPoints >= MAX_POINTS) {
-                playTone(150, 'triangle', 0.3); // 已滿的提示音
+                playTone(150, 'triangle', 0.3);
                 alert("已經集滿囉！快去找爸爸媽媽換獎勵！");
                 return;
             }
@@ -147,18 +145,14 @@
             localStorage.setItem('baby_points', currentPoints);
             updateUI();
             
-            // 叮咚音效 (叮~咚~)
-            playTone(523.25, 'sine', 0.15); // C5
-            setTimeout(() => playTone(659.25, 'sine', 0.2), 150); // E5
+            playTone(523.25, 'sine', 0.15);
+            setTimeout(() => playTone(659.25, 'sine', 0.2), 150);
 
-            // 檢查是否集滿
             if (currentPoints === MAX_POINTS) {
                 setTimeout(() => {
-                    // 萬歲音效
                     playTone(880, 'sine', 0.1); 
                     setTimeout(() => playTone(1046.5, 'sine', 0.4), 100);
                     
-                    // 噴發慶祝紙屑特效
                     confetti({
                         particleCount: 150,
                         spread: 80,
@@ -168,13 +162,12 @@
             }
         }
 
-        // 更新畫面顯示
         function updateUI() {
             const slots = document.querySelectorAll('.slot');
             slots.forEach((slot, index) => {
                 if (index < currentPoints) {
                     slot.classList.add('active');
-                    slot.innerText = '⭐'; // 蓋上星星章
+                    slot.innerText = '⭐';
                 } else {
                     slot.classList.remove('active');
                     slot.innerText = index + 1;
@@ -182,7 +175,6 @@
             });
         }
 
-        // 重置點數
         function resetPoints() {
             if(confirm("確定要清除點數，重新開始一張新的嗎？")) {
                 currentPoints = 0;
@@ -191,27 +183,5 @@
             }
         }
 
-        // 逼真音效產生器（不需要音檔，直接用網頁瀏覽器頻率發聲）
         function playTone(freq, type, duration) {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                oscillator.type = type;
-                oscillator.frequency.value = freq;
-                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime); // 音量
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.log("音效播放失敗", e);
-            }
-        }
-    </script>
-</body>
-</html> 
