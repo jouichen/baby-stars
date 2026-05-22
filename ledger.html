@@ -15,6 +15,7 @@
             --bg-color: #FFF5F7;
             --primary: #FF7B94;
             --border-color: #FFE0E6;
+            --accent: #4CAF50;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
@@ -32,12 +33,12 @@
         }
         
         /* 數字與輸入區 */
-        .amount-display { font-size: 2.2rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
+        .amount-display { font-size: 2.2rem; font-weight: bold; color: var(--primary); margin: 5px 0; }
         .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 15px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
         
         /* 分類按鈕區 */
-        .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
         .cat-btn {
             background: white; border: 2px solid var(--border-color); border-radius: 15px;
             padding: 10px; cursor: pointer; transition: all 0.2s;
@@ -46,22 +47,27 @@
         .cat-icon { font-size: 1.8rem; margin-bottom: 3px; }
         .cat-name { font-size: 0.85rem; font-weight: bold; color: #666; }
 
+        /* 儲存按鈕 */
+        .save-day-btn { background: var(--primary); color: white; border: none; width: 100%; padding: 12px; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(255,123,148,0.3); margin-top: 5px; }
+        .save-day-btn:active { transform: scale(0.98); opacity: 0.9; }
+
         /* 歷史清單區 */
         .history-title { font-size: 1rem; font-weight: bold; color: #555; text-align: left; margin-bottom: 10px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; }
-        .history-list { max-height: 200px; overflow-y: auto; text-align: left; }
-        .history-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px dashed #EEE; font-size: 0.95rem; }
-        .empty-text { color: #BBB; text-align: center; padding: 20px 0; font-style: italic; font-size: 0.9rem; }
+        .history-list { max-height: 180px; overflow-y: auto; text-align: left; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px 5px; border-bottom: 1px dashed #EEE; font-size: 0.95rem; }
+        .daily-summary-item { display: flex; justify-content: space-between; padding: 10px 8px; border-bottom: 1px solid #FFD0D8; font-size: 1rem; background: #FFF9FA; font-weight: bold; border-radius: 8px; margin-bottom: 5px; }
         
+        .empty-text { color: #BBB; text-align: center; padding: 15px 0; font-style: italic; font-size: 0.9rem; }
         .clear-btn { background: #78909C; color: white; border: none; padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; cursor: pointer; float: right; margin-top: -2px; }
     </style>
 </head>
 <body>
 
-    <h1>🌸 我的隨手記帳本 🌸</h1>
-    <div class="subtitle">今天花了多少錢？隨手點一下記起來！</div>
+    <h1>🌸 我的每日隨手記帳本 🌸</h1>
+    <div class="subtitle">輸入金額、點選分類，自動幫你按日期統計每天花費！</div>
 
     <div class="card">
-        <div style="font-size: 0.9rem; color: #888; font-weight: bold;">💰 今日累計消費</div>
+        <div style="font-size: 0.9rem; color: #888; font-weight: bold;">💰 今日累計消費 (<span id="currentDateTxt"></span>)</div>
         <div class="amount-display">$ <span id="todayTotal">0</span></div>
         
         <input type="number" id="amountInput" class="input-box" placeholder="輸入金額 (例如: 150)" inputmode="numeric">
@@ -86,21 +92,39 @@
                 <div class="cat-icon">✨</div><div class="cat-name">其他</div>
             </button>
         </div>
+
+        <button class="save-day-btn" onclick="manuallySaveDay()">🔒 結算今天，存入歷史日記</button>
     </div>
 
     <div class="card">
-        <div class="history-title">
-            📝 今日消費明細
-            <button class="clear-btn" onclick="clearRecords()">歸零重來</button>
+        <div class="history-title">📝 今天的消費明細</div>
+        <div id="historyList" class="history-list"></div>
+    </div>
+
+    <div class="card" style="border-color: #B5EAD7;">
+        <div class="history-title" style="color: #2E7D32; border-bottom-color: #B5EAD7;">
+            📅 歷史每日總和日誌
+            <button class="clear-btn" onclick="clearAllData()">全部清空</button>
         </div>
-        <div id="historyList" class="history-list">
+        <div id="dailyLogList" class="history-list">
             </div>
     </div>
 
     <script>
-        let records = JSON.parse(localStorage.getItem('my_daily_ledger')) || [];
+        // 讀取資料
+        let currentDayRecords = JSON.parse(localStorage.getItem('ledger_current_records')) || [];
+        let dailyHistoryLog = JSON.parse(localStorage.getItem('ledger_daily_history_log')) || [];
+        let lastSavedDate = localStorage.getItem('ledger_last_date') || '';
 
-        // 初始化網頁
+        const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' });
+        document.getElementById('currentDateTxt').innerText = todayStr;
+
+        // 🧠 核心自動跨日檢查：如果發現手機系統日期變了，把之前的帳加總存進歷史，並清空今天的明細
+        if (lastSavedDate && lastSavedDate !== todayStr && currentDayRecords.length > 0) {
+            autoArchiveDay(lastSavedDate);
+        }
+        localStorage.setItem('ledger_last_date', todayStr);
+
         updateUI();
 
         function addRecord(icon, category) {
@@ -112,61 +136,105 @@
                 return;
             }
 
-            // 建立一筆新資料
             const newRecord = {
-                date: new Date().toLocaleDateString(),
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 icon: icon,
                 category: category,
                 amount: amount
             };
 
-            // 塞入陣列並存進手機
-            records.unshift(newRecord); // 新的在最前面
-            localStorage.setItem('my_daily_ledger', JSON.stringify(records));
+            currentDayRecords.unshift(newRecord);
+            localStorage.setItem('ledger_current_records', JSON.stringify(currentDayRecords));
 
-            // 清空輸入框
             amountInput.value = '';
-            amountInput.blur(); // 隱藏手機鍵盤
+            amountInput.blur();
+            updateUI();
+        }
 
+        // 自動跨日結算存檔
+        function autoArchiveDay(pastDateStr) {
+            let total = 0;
+            currentDayRecords.forEach(r => total += r.amount);
+
+            if (total > 0) {
+                // 檢查是否已經存在該日期的歷史紀錄，有的話就更新，沒有就新增
+                const existingIndex = dailyHistoryLog.findIndex(log => log.date === pastDateStr);
+                if (existingIndex > -1) {
+                    dailyHistoryLog[existingIndex].total = total;
+                } else {
+                    dailyHistoryLog.unshift({ date: pastDateStr, total: total });
+                }
+                localStorage.setItem('ledger_daily_history_log', JSON.stringify(dailyHistoryLog));
+            }
+            // 清空今日明細
+            currentDayRecords = [];
+            localStorage.setItem('ledger_current_records', JSON.stringify(currentDayRecords));
+        }
+
+        // 手動點擊「結算存入歷史」按鈕
+        function manuallySaveDay() {
+            let total = 0;
+            currentDayRecords.forEach(r => total += r.amount);
+
+            if (total === 0) {
+                alert("今天還沒有輸入任何花費，不需要存檔唷！");
+                return;
+            }
+
+            const existingIndex = dailyHistoryLog.findIndex(log => log.date === todayStr);
+            if (existingIndex > -1) {
+                dailyHistoryLog[existingIndex].total = total; // 覆蓋更新
+            } else {
+                dailyHistoryLog.unshift({ date: todayStr, total: total }); // 新增一筆
+            }
+
+            localStorage.setItem('ledger_daily_history_log', JSON.stringify(dailyHistoryLog));
+            alert(`🎉 存檔成功！已將今日總計 $${total} 元記錄至下方歷史日誌中！`);
             updateUI();
         }
 
         function updateUI() {
+            // 1. 更新今日明細與今日總和
             const listEl = document.getElementById('historyList');
             const totalEl = document.getElementById('todayTotal');
-            
-            const todayStr = new Date().toLocaleDateString();
-            let total = 0;
+            let todayTotal = 0;
             
             listEl.innerHTML = '';
-
-            // 篩選出今天的紀錄
-            const todayRecords = records.filter(r => r.date === todayStr);
-
-            if (todayRecords.length === 0) {
-                listEl.innerHTML = '<div class="empty-text">今天還沒有記帳唷，繼續保持！</div>';
+            if (currentDayRecords.length === 0) {
+                listEl.innerHTML = '<div class="empty-text">今天還沒有消費明細。</div>';
             } else {
-                todayRecords.forEach(r => {
-                    total += r.amount;
+                currentDayRecords.forEach(r => {
+                    todayTotal += r.amount;
                     const item = document.createElement('div');
                     item.className = 'history-item';
-                    item.innerHTML = `
-                        <span>${r.time} ${r.icon} <b>${r.category}</b></span>
-                        <span style="font-weight:bold; color:#444;">$ ${r.amount}</span>
-                    `;
+                    item.innerHTML = `<span>${r.time} ${r.icon} <b>${r.category}</b></span><span style="font-weight:bold; color:#444;">$ ${r.amount}</span>`;
                     listEl.appendChild(item);
                 });
             }
+            totalEl.innerText = todayTotal.toLocaleString('zh-TW');
 
-            // 更新總金額
-            totalEl.innerText = total.toLocaleString('zh-TW');
+            // 2. 更新【📅 歷史每日總和日誌】
+            const logListEl = document.getElementById('dailyLogList');
+            logListEl.innerHTML = '';
+            
+            if (dailyHistoryLog.length === 0) {
+                logListEl.innerHTML = '<div class="empty-text">尚無歷史每日總和紀錄。</div>';
+            } else {
+                dailyHistoryLog.forEach(log => {
+                    const item = document.createElement('div');
+                    item.className = 'daily-summary-item';
+                    item.innerHTML = `<span>📅 ${log.date}</span><span style="color:#2E7D32;">$ ${log.total.toLocaleString('zh-TW')}</span>`;
+                    logListEl.appendChild(item);
+                });
+            }
         }
 
-        function clearRecords() {
-            if(confirm("確定要清空所有的歷史記帳紀錄嗎？")) {
-                records = [];
-                localStorage.removeItem('my_daily_ledger');
+        function clearAllData() {
+            if(confirm("確定要完全清空「今日明細」與「歷史每日總和」所有資料嗎？")) {
+                currentDayRecords = [];
+                dailyHistoryLog = [];
+                localStorage.removeItem('ledger_current_records');
+                localStorage.removeItem('ledger_daily_history_log');
                 updateUI();
             }
         }
