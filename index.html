@@ -96,4 +96,176 @@
         </button>
         <button class="task-card" id="task_sleep" onclick="toggleTask('task_sleep')">
             <div class="check-badge">✓</div>
-            <div class="task-icon">
+            <div class="task-icon">🛏️</div>
+            <div class="task-name">乖乖睡覺</div>
+        </button>
+    </div>
+
+    <div class="progress-box">
+        <div class="progress-text" id="progressText">🌟 再得到 5 顆星星就可以抽徽章囉！</div>
+        <div class="star-row">
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+        </div>
+    </div>
+
+    <div class="section-title">🏆 我的皇家徽章展示櫃 (<span id="badgeCount">0</span>)</div>
+    <div class="showcase-box">
+        <div id="emptyMessage" class="empty-text">目前還沒有徽章，跟著爸爸媽媽一起努力吧！</div>
+        <div class="badge-grid" id="badgeGrid"></div>
+    </div>
+
+    <div class="admin-panel">
+        <div class="admin-title">🛠️ 爸爸媽媽測試控制台</div>
+        <button class="admin-btn" onclick="testUnlockTasks()">🔓 解鎖今日任務（可重複測試點擊）</button>
+        <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置（清除所有點數與徽章）</button>
+    </div>
+
+    <script>
+        // 公主與夢幻系列徽章庫
+        const AVAILABLE_BADGES = [
+            { icon: '👸', name: '白雪公主' }, { icon: '🧜‍♀️', name: '美人魚' }, 
+            { icon: '🧚‍♀️', name: '奇妙仙子' }, { icon: '👑', name: '閃亮皇冠' },
+            { icon: '💎', name: '夢幻粉鑽' }, { icon: '🦄', name: '彩虹獨角獸' },
+            { icon: '🏰', name: '夢幻城堡' }, { icon: '🪄', name: '魔法神棒' },
+            { icon: '🩰', name: '芭蕾舞鞋' }, { icon: '🐱', name: '皇室小貓' }
+        ];
+
+        let currentStars = parseInt(localStorage.getItem('baby_stars_count')) || 0;
+        let collectedBadges = JSON.parse(localStorage.getItem('baby_badges_list')) || [];
+        let taskState = JSON.parse(localStorage.getItem('baby_tasks_today')) || { date: '', task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+        let audioCtx = null;
+
+        // 檢查日期自動重置
+        const todayStr = new Date().toDateString();
+        if (taskState.date !== todayStr) {
+            taskState = { date: todayStr, task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+        }
+
+        updateUI();
+
+        function toggleTask(taskId) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 修正對照 bug
+            if (taskState[taskId]) return;
+
+            taskState[taskId] = true;
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+
+            currentStars++;
+            
+            // 叮咚三連音
+            playTone(523.25, 'sine', 0.15);
+            setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
+            setTimeout(() => playTone(783.99, 'sine', 0.2), 200);
+
+            if (currentStars >= 5) {
+                currentStars = 0;
+                localStorage.setItem('baby_stars_count', currentStars);
+                setTimeout(rewardBadge, 600);
+            } else {
+                localStorage.setItem('baby_stars_count', currentStars);
+                updateUI();
+            }
+        }
+
+        function rewardBadge() {
+            const randomIndex = Math.floor(Math.random() * AVAILABLE_BADGES.length);
+            const newBadge = AVAILABLE_BADGES[randomIndex];
+            
+            collectedBadges.push(newBadge);
+            localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
+            
+            updateUI();
+
+            // 慶祝音效
+            playTone(523.25, 'sine', 0.1); setTimeout(() => playTone(659.25, 'sine', 0.1), 80);
+            setTimeout(() => playTone(783.99, 'sine', 0.1), 160); setTimeout(() => playTone(1046.5, 'sine', 0.4), 240);
+
+            // 噴紙屑
+            confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
+
+            setTimeout(() => {
+                alert(`🎉 太棒了！你表現得超級好！\n獲得了一個全新的【${newBadge.icon} ${newBadge.name}徽章】！\n快去展示櫃看看吧！`);
+            }, 300);
+        }
+
+        function updateUI() {
+            document.getElementById('task_teeth').className = 'task-card' + (taskState.task_teeth ? ' completed' : '');
+            document.getElementById('task_bath').className = 'task-card' + (taskState.task_bath ? ' completed' : '');
+            document.getElementById('task_eat').className = 'task-card' + (taskState.task_eat ? ' completed' : '');
+            document.getElementById('task_toys').className = 'task-card' + (taskState.task_toys ? ' completed' : '');
+            document.getElementById('task_sleep').className = 'task-card' + (taskState.task_sleep ? ' completed' : '');
+
+            const starSlots = document.querySelectorAll('.star-slot');
+            starSlots.forEach((slot, index) => {
+                if (index < currentStars) {
+                    slot.className = 'star-slot active';
+                    slot.innerText = '★';
+                } else {
+                    slot.className = 'star-slot';
+                    slot.innerText = '☆';
+                }
+            });
+            document.getElementById('progressText').innerText = `🌟 再得到 ${5 - currentStars} 顆星星就可以抽徽章囉！`;
+
+            const badgeGrid = document.getElementById('badgeGrid');
+            const emptyMessage = document.getElementById('emptyMessage');
+            document.getElementById('badgeCount').innerText = collectedBadges.length;
+
+            badgeGrid.innerHTML = '';
+            if (collectedBadges.length === 0) {
+                emptyMessage.style.display = 'block';
+            } else {
+                emptyMessage.style.display = 'none';
+                collectedBadges.forEach(badge => {
+                    const badgeEl = document.createElement('div');
+                    badgeEl.className = 'collected-badge';
+                    badgeEl.innerHTML = `<div>${badge.icon}</div><div class="badge-label">${badge.name}</div>`;
+                    badgeGrid.appendChild(badgeEl);
+                });
+            }
+        }
+
+        /* 🛠️ 測試專用 Function */
+        function testUnlockTasks() {
+            taskState = { date: new Date().toDateString(), task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+            updateUI();
+        }
+
+        function testResetAll() {
+            if(confirm("確定要清除所有測試徽章與點數，完全重新開始嗎？")) {
+                currentStars = 0;
+                collectedBadges = [];
+                taskState = { date: new Date().toDateString(), task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+                localStorage.removeItem('baby_stars_count');
+                localStorage.removeItem('baby_badges_list');
+                localStorage.removeItem('baby_tasks_today');
+                updateUI();
+            }
+        }
+
+        function playTone(freq, type, duration) {
+            try {
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = type;
+                oscillator.frequency.value = freq;
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
+            } catch (e) { console.log(e); }
+        }
+    </script>
+</body>
+</html>
