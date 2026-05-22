@@ -69,6 +69,9 @@
 </head>
 <body>
 
+    <audio id="sndPop" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav" preload="auto"></audio>
+    <audio id="sndSuccess" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-84.wav" preload="auto"></audio>
+
     <h1>👑 寶貝的榮譽徽章收藏館 👑</h1>
     <div class="subtitle">每天做好生活小事情，就能累積星星換美麗徽章唷！</div>
 
@@ -137,7 +140,6 @@
         let currentStars = parseInt(localStorage.getItem('baby_stars_count')) || 0;
         let collectedBadges = JSON.parse(localStorage.getItem('baby_badges_list')) || [];
         let taskState = JSON.parse(localStorage.getItem('baby_tasks_today')) || { date: '', task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
-        let audioCtx = null;
 
         // 檢查日期自動重置
         const todayStr = new Date().toDateString();
@@ -149,24 +151,22 @@
         updateUI();
 
         function toggleTask(taskId) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // 修正對照 bug
             if (taskState[taskId]) return;
+
+            // 播放點擊蓋章音效 (啵一聲)
+            playSound('sndPop');
 
             taskState[taskId] = true;
             localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
 
             currentStars++;
-            
-            // 叮咚三連音
-            playTone(523.25, 'sine', 0.15);
-            setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
-            setTimeout(() => playTone(783.99, 'sine', 0.2), 200);
 
             if (currentStars >= 5) {
                 currentStars = 0;
                 localStorage.setItem('baby_stars_count', currentStars);
+                
+                // 滿星時直接播歌，不用等定時器
+                playSound('sndSuccess');
                 setTimeout(rewardBadge, 600);
             } else {
                 localStorage.setItem('baby_stars_count', currentStars);
@@ -182,10 +182,6 @@
             localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
             
             updateUI();
-
-            // 慶祝音效
-            playTone(523.25, 'sine', 0.1); setTimeout(() => playTone(659.25, 'sine', 0.1), 80);
-            setTimeout(() => playTone(783.99, 'sine', 0.1), 160); setTimeout(() => playTone(1046.5, 'sine', 0.4), 240);
 
             // 噴紙屑
             confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
@@ -232,6 +228,21 @@
             }
         }
 
+        // 🎵 專用音檔播放器（自動重置時間軸，解決連續點擊不發聲問題）
+        function playSound(audioId) {
+            try {
+                const snd = document.getElementById(audioId);
+                if (snd) {
+                    snd.currentTime = 0; // 重回起點
+                    snd.play().catch(err => {
+                        console.log("手機瀏覽器靜音政策擋下，需互動後解鎖:", err);
+                    });
+                }
+            } catch (e) {
+                console.log("播放失敗", e);
+            }
+        }
+
         /* 🛠️ 測試專用 Function */
         function testUnlockTasks() {
             taskState = { date: new Date().toDateString(), task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
@@ -249,22 +260,6 @@
                 localStorage.removeItem('baby_tasks_today');
                 updateUI();
             }
-        }
-
-        function playTone(freq, type, duration) {
-            try {
-                if (!audioCtx) return;
-                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.type = type;
-                oscillator.frequency.value = freq;
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
-            } catch (e) { console.log(e); }
         }
     </script>
 </body>
