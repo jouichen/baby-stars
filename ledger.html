@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的隨手記帳本</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="隨手記帳">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <style>
+        :root {
+            --bg-color: #FFF5F7;
+            --primary: #FF7B94;
+            --border-color: #FFE0E6;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 15px; color: #4A4A4A; text-align: center;
+        }
+        h1 { color: var(--primary); font-size: 1.6rem; margin: 10px 0 5px 0; }
+        .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+        
+        .card {
+            background: white; border-radius: 20px; padding: 15px;
+            max-width: 450px; margin: 0 auto 15px auto;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.04); border: 2px solid var(--border-color);
+        }
+        
+        /* 數字與輸入區 */
+        .amount-display { font-size: 2.2rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
+        .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 15px; }
+        .input-box:focus { border-color: var(--primary); outline: none; }
+        
+        /* 分類按鈕區 */
+        .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .cat-btn {
+            background: white; border: 2px solid var(--border-color); border-radius: 15px;
+            padding: 10px; cursor: pointer; transition: all 0.2s;
+        }
+        .cat-btn:active { transform: scale(0.95); background: #FFF9FA; }
+        .cat-icon { font-size: 1.8rem; margin-bottom: 3px; }
+        .cat-name { font-size: 0.85rem; font-weight: bold; color: #666; }
+
+        /* 歷史清單區 */
+        .history-title { font-size: 1rem; font-weight: bold; color: #555; text-align: left; margin-bottom: 10px; border-bottom: 2px solid var(--border-color); padding-bottom: 5px; }
+        .history-list { max-height: 200px; overflow-y: auto; text-align: left; }
+        .history-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px dashed #EEE; font-size: 0.95rem; }
+        .empty-text { color: #BBB; text-align: center; padding: 20px 0; font-style: italic; font-size: 0.9rem; }
+        
+        .clear-btn { background: #78909C; color: white; border: none; padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; cursor: pointer; float: right; margin-top: -2px; }
+    </style>
+</head>
+<body>
+
+    <h1>🌸 我的隨手記帳本 🌸</h1>
+    <div class="subtitle">今天花了多少錢？隨手點一下記起來！</div>
+
+    <div class="card">
+        <div style="font-size: 0.9rem; color: #888; font-weight: bold;">💰 今日累計消費</div>
+        <div class="amount-display">$ <span id="todayTotal">0</span></div>
+        
+        <input type="number" id="amountInput" class="input-box" placeholder="輸入金額 (例如: 150)" inputmode="numeric">
+        
+        <div class="category-grid">
+            <button class="cat-btn" onclick="addRecord('🍔', '餐飲')">
+                <div class="cat-icon">🍔</div><div class="cat-name">餐飲</div>
+            </button>
+            <button class="cat-btn" onclick="addRecord('🚗', '交通')">
+                <div class="cat-icon">🚗</div><div class="cat-name">交通</div>
+            </button>
+            <button class="cat-btn" onclick="addRecord('🛍️', '購物')">
+                <div class="cat-icon">🛍️</div><div class="cat-name">購物</div>
+            </button>
+            <button class="cat-btn" onclick="addRecord('🏠', '居家')">
+                <div class="cat-icon">🏠</div><div class="cat-name">居家</div>
+            </button>
+            <button class="cat-btn" onclick="addRecord('🎉', '娛樂')">
+                <div class="cat-icon">🎉</div><div class="cat-name">娛樂</div>
+            </button>
+            <button class="cat-btn" onclick="addRecord('✨', '其他')">
+                <div class="cat-icon">✨</div><div class="cat-name">其他</div>
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="history-title">
+            📝 今日消費明細
+            <button class="clear-btn" onclick="clearRecords()">歸零重來</button>
+        </div>
+        <div id="historyList" class="history-list">
+            </div>
+    </div>
+
+    <script>
+        let records = JSON.parse(localStorage.getItem('my_daily_ledger')) || [];
+
+        // 初始化網頁
+        updateUI();
+
+        function addRecord(icon, category) {
+            const amountInput = document.getElementById('amountInput');
+            const amount = parseInt(amountInput.value);
+
+            if (!amount || amount <= 0) {
+                alert("請先輸入正確的金額唷！");
+                return;
+            }
+
+            // 建立一筆新資料
+            const newRecord = {
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                icon: icon,
+                category: category,
+                amount: amount
+            };
+
+            // 塞入陣列並存進手機
+            records.unshift(newRecord); // 新的在最前面
+            localStorage.setItem('my_daily_ledger', JSON.stringify(records));
+
+            // 清空輸入框
+            amountInput.value = '';
+            amountInput.blur(); // 隱藏手機鍵盤
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const listEl = document.getElementById('historyList');
+            const totalEl = document.getElementById('todayTotal');
+            
+            const todayStr = new Date().toLocaleDateString();
+            let total = 0;
+            
+            listEl.innerHTML = '';
+
+            // 篩選出今天的紀錄
+            const todayRecords = records.filter(r => r.date === todayStr);
+
+            if (todayRecords.length === 0) {
+                listEl.innerHTML = '<div class="empty-text">今天還沒有記帳唷，繼續保持！</div>';
+            } else {
+                todayRecords.forEach(r => {
+                    total += r.amount;
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `
+                        <span>${r.time} ${r.icon} <b>${r.category}</b></span>
+                        <span style="font-weight:bold; color:#444;">$ ${r.amount}</span>
+                    `;
+                    listEl.appendChild(item);
+                });
+            }
+
+            // 更新總金額
+            totalEl.innerText = total.toLocaleString('zh-TW');
+        }
+
+        function clearRecords() {
+            if(confirm("確定要清空所有的歷史記帳紀錄嗎？")) {
+                records = [];
+                localStorage.removeItem('my_daily_ledger');
+                updateUI();
+            }
+        }
+    </script>
+</body>
+</html>
