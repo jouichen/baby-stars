@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的夢幻資產理財面板</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="夢幻理財">
+    <link rel="apple-touch-icon" href="icon.png"> <style>
+        :root {
+            --bg-color: #FFF5F7;
+            --primary: #FF7B94;
+            --color-cash: #FF9AA2;   /* 定存粉紅 */
+            --color-tw: #FFB7B2;     /* 台股粉橘 */
+            --color-us: #B5EAD7;     /* 美股粉綠 */
+            --color-fund: #C7CEEA;   /* 基金粉藍 */
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 15px;
+            color: #4A4A4A; text-align: center;
+        }
+        h1 { color: var(--primary); font-size: 1.6rem; margin: 10px 0 5px 0; }
+        .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+        
+        .card {
+            background: white; border-radius: 20px; padding: 15px;
+            max-width: 480px; margin: 0 auto 20px auto;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.04); border: 2px solid #FFE0E6;
+        }
+        .section-title { font-size: 1.1rem; font-weight: bold; color: var(--primary); text-align: left; margin-bottom: 15px; display: flex; align-items: center; gap: 5px; }
+        
+        /* 表單輸入 */
+        .input-group { display: flex; align-items: center; margin-bottom: 10px; justify-content: space-between; }
+        .input-label { font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; gap: 5px; }
+        .input-field { width: 130px; padding: 8px; border: 2px solid #FFE0E6; border-radius: 10px; text-align: right; font-size: 1rem; color: #4A4A4A; font-weight: bold; }
+        .input-field:focus { border-color: var(--primary); outline: none; }
+        
+        /* 總資產展示 */
+        .total-box { font-size: 1.8rem; font-weight: bold; color: #333; margin: 10px 0; background: #FFF9FA; padding: 10px; border-radius: 12px; }
+        
+        /* CSS 偽圓餅圖區 */
+        .chart-container { display: flex; justify-content: center; align-items: center; gap: 25px; margin: 20px 0; flex-wrap: wrap; }
+        .pie-chart {
+            width: 140px; height: 140px; border-radius: 50%;
+            background: conic-gradient(var(--color-cash) 0% 25%, var(--color-tw) 25% 50%, var(--color-us) 50% 75%, var(--color-fund) 75% 100%);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: background 0.5s;
+        }
+        .legend { text-align: left; display: flex; flex-direction: column; gap: 6px; }
+        .legend-item { display: flex; align-items: center; font-size: 0.85rem; font-weight: bold; }
+        .dot { width: 12px; height: 12px; border-radius: 4px; margin-right: 8px; display: inline-block; }
+
+        /* 比例進度條 */
+        .progress-bar-total { height: 8px; width: 100%; background: #F0F0F0; border-radius: 4px; overflow: hidden; display: flex; margin-top: 15px; }
+        .progress-segment { height: 100%; transition: width 0.5s; }
+
+        /* 複利計算器 */
+        .slider-group { margin: 15px 0; text-align: left; }
+        .slider-title { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; }
+        .slider { width: 100%; -webkit-appearance: none; height: 8px; border-radius: 5px; background: #FFE0E6; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+        
+        .result-row { display: flex; justify-content: space-between; margin-top: 10px; padding: 8px 0; border-bottom: 1px dashed #EEE; font-size: 0.9rem; }
+        .highlight { font-weight: bold; color: #E53935; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <h1>🌸 我的夢幻資產理財面板 🌸</h1>
+    <div class="subtitle">細心灌溉財富種子，讓資產像雪球一樣滾大吧！</div>
+
+    <div class="card">
+        <div class="section-title">💰 目前資產配置 (台幣)</div>
+        
+        <div class="input-group">
+            <span class="input-label"><span class="dot" style="background:var(--color-cash)"></span>🐷 銀行定存/現金</span>
+            <input type="number" id="v_cash" class="input-field" value="200000" oninput="calculateAssets()">
+        </div>
+        <div class="input-group">
+            <span class="input-label"><span class="dot" style="background:var(--color-tw)"></span>🇹🇼 台灣股票</span>
+            <input type="number" id="v_tw" class="input-field" value="300000" oninput="calculateAssets()">
+        </div>
+        <div class="input-group">
+            <span class="input-label"><span class="dot" style="background:var(--color-us)"></span>🇺🇸 美國股票</span>
+            <input type="number" id="v_us" class="input-field" value="400000" oninput="calculateAssets()">
+        </div>
+        <div class="input-group">
+            <span class="input-label"><span class="dot" style="background:var(--color-fund)"></span>📊 共同基金</span>
+            <input type="number" id="v_fund" class="input-field" value="100000" oninput="calculateAssets()">
+        </div>
+
+        <div class="total-box">
+            <span style="font-size:1rem; color:#888; font-weight:normal;">總資產估值：</span><br>
+            $ <span id="total_amount">0</span> 元
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="section-title">📊 資產比例分析</div>
+        <div class="chart-container">
+            <div class="pie-chart" id="pieChart"></div>
+            <div class="legend">
+                <div class="legend-item"><span class="dot" style="background:var(--color-cash)"></span>定存: <span id="p_cash">0</span>%</div>
+                <div class="legend-item"><span class="dot" style="background:var(--color-tw)"></span>台股: <span id="p_tw">0</span>%</div>
+                <div class="legend-item"><span class="dot" style="background:var(--color-us)"></span>美股: <span id="p_us">0</span>%</div>
+                <div class="legend-item"><span class="dot" style="background:var(--color-fund)"></span>基金: <span id="p_fund">0</span>%</div>
+            </div>
+        </div>
+        <div class="progress-bar-total">
+            <div id="b_cash" class="progress-segment" style="background:var(--color-cash)"></div>
+            <div id="b_tw" class="progress-segment" style="background:var(--color-tw)"></div>
+            <div id="b_us" class="progress-segment" style="background:var(--color-us)"></div>
+            <div id="b_fund" class="progress-segment" style="background:var(--color-fund)"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="section-title">🔮 財富魔法：神奇複利試算</div>
+        <div style="font-size:0.8rem; color:#666; text-align:left; margin-bottom:10px;">假設把上述總資產全部放著不動，持續投入與滾存：</div>
+        
+        <div class="slider-group">
+            <div class="slider-title"><span>📈 預期年化報酬率 (年利率)</span><span id="rate_txt">6%</span></div>
+            <input type="range" id="r_rate" class="slider" min="1" max="15" value="6" oninput="calculateCompound()">
+        </div>
+        
+        <div class="slider-group">
+            <div class="slider-title"><span>額外每月定期定額再投入</span><span id="invest_txt">$10,000 元</span></div>
+            <input type="range" id="r_invest" class="slider" min="0" max="50000" step="1000" value="10000" oninput="calculateCompound()">
+        </div>
+
+        <div style="margin-top:15px;">
+            <div class="result-row"><span>⏳ 經過 10 年後資產：</span><span id="res_10" class="highlight">$0</span></div>
+            <div class="result-row"><span>⌛ 經過 20 年後資產：</span><span id="res_20" class="highlight">$0</span></div>
+            <div class="result-row"><span>👑 經過 30 年後資產：</span><span id="res_30" class="highlight" style="color:#D81B60; font-size:1.3rem;">$0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化載入
+        loadSavedData();
+        calculateAssets();
+
+        function calculateAssets() {
+            // 抓取四大數值
+            const cash = Math.abs(parseFloat(document.getElementById('v_cash').value)) || 0;
+            const tw = Math.abs(parseFloat(document.getElementById('v_tw').value)) || 0;
+            const us = Math.abs(parseFloat(document.getElementById('v_us').value)) || 0;
+            const fund = Math.abs(parseFloat(document.getElementById('v_fund').value)) || 0;
+
+            const total = cash + tw + us + fund;
+            document.getElementById('total_amount').innerText = total.toLocaleString('zh-TW');
+
+            // 計算百分比
+            const pCash = total ? Math.round((cash / total) * 100) : 0;
+            const pTw = total ? Math.round((tw / total) * 100) : 0;
+            const pUs = total ? Math.round((us / total) * 100) : 0;
+            const pFund = total ? (100 - pCash - pTw - pUs) : 0; // 確保加總剛好 100
+
+            // 更新文字百分比
+            document.getElementById('p_cash').innerText = pCash;
+            document.getElementById('p_tw').innerText = pTw;
+            document.getElementById('p_us').innerText = pUs;
+            document.getElementById('p_fund').innerText = pFund >= 0 ? pFund : 0;
+
+            // 更新下方的線條進度條
+            document.getElementById('b_cash').style.width = pCash + '%';
+            document.getElementById('b_tw').style.width = pTw + '%';
+            document.getElementById('b_us').style.width = pUs + '%';
+            document.getElementById('b_fund').style.width = (pFund >= 0 ? pFund : 0) + '%';
+
+            // 🌟 核心魔法：用 conic-gradient 動態畫出圓餅圖的角度
+            const degTw = pCash + pTw;
+            const degUs = degTw + pUs;
+            document.getElementById('pieChart').style.background = `conic-gradient(
+                var(--color-cash) 0% ${pCash}%, 
+                var(--color-tw) ${pCash}% ${degTw}%, 
+                var(--color-us) ${degTw}% ${degUs}%, 
+                var(--color-fund) ${degUs}% 100%
+            )`;
+
+            // 儲存資料到本機
+            localStorage.setItem('my_assets_data', JSON.stringify({cash, tw, us, fund}));
+
+            // 同步聯動複利計算
+            calculateCompound();
+        }
+
+        function calculateCompound() {
+            const cash = Math.abs(parseFloat(document.getElementById('v_cash').value)) || 0;
+            const tw = Math.abs(parseFloat(document.getElementById('v_tw').value)) || 0;
+            const us = Math.abs(parseFloat(document.getElementById('v_us').value)) || 0;
+            const fund = Math.abs(parseFloat(document.getElementById('v_fund').value)) || 0;
+            const principal = cash + tw + us + fund; // 總資產當作本金
+
+            const rate = parseFloat(document.getElementById('r_rate').value) / 100;
+            const monthlyInvest = parseFloat(document.getElementById('r_invest').value);
+
+            document.getElementById('rate_txt').innerText = (rate * 100) + '%';
+            document.getElementById('invest_txt').innerText = '$' + monthlyInvest.toLocaleString('zh-TW') + ' 元';
+
+            // 算出 10, 20, 30 年複利
+            document.getElementById('res_10').innerText = '$ ' + getCompoundTotal(principal, rate, monthlyInvest, 10);
+            document.getElementById('res_20').innerText = '$ ' + getCompoundTotal(principal, rate, monthlyInvest, 20);
+            document.getElementById('res_30').innerText = '$ ' + getCompoundTotal(principal, rate, monthlyInvest, 30);
+        }
+
+        // 複利公式計算器 (包含單筆本金 + 定期定額年複利)
+        function getCompoundTotal(p, r, m, years) {
+            let total = p;
+            // 逐月計算複利滾存
+            const monthlyRate = r / 12;
+            const months = years * 12;
+            for(let i = 0; i < months; i++) {
+                total = (total + m) * (1 + monthlyRate);
+            }
+            return Math.round(total).toLocaleString('zh-TW');
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('my_assets_data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('v_cash').value = data.cash;
+                document.getElementById('v_tw').value = data.tw;
+                document.getElementById('v_us').value = data.us;
+                document.getElementById('v_fund').value = data.fund;
+            }
+        }
+    </script>
+</body>
+</html>
