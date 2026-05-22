@@ -1,0 +1,37 @@
+name: 育兒情報機器人定時派送
+
+on:
+  # 📅 觸發時間設定 (使用國際標準時間 UTC)
+  schedule:
+    # 這裡代表：每週一早上 8:00 (台北時間) 自動執行
+    - cron: '0 0 * * 1'
+  
+  # ⚡ 支援手動點擊執行（測試用）
+  workflow_dispatch:
+
+jobs:
+  run-robot:
+    runs-on: ubuntu-latest
+    steps:
+    
+    # 1. 把你的程式碼複製到虛擬機上
+    - name: 讀取專案檔案
+      uses: actions/checkout@v3
+
+    # 2. 讓虛擬機安裝 Python 環境
+    - name: 安裝 Python 環境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # 3. 安裝爬蟲需要的工具套件 (requests 和 BeautifulSoup)
+    - name: 安裝爬蟲必要套件
+      run: |
+        pip install requests beautifulsoup4
+
+    # 4. 執行你的 Python 檔案，並把保險箱密碼借給它用
+    - name: 啟動機器人抓取資料並發信
+      env:
+        MY_EMAIL: ${{ secrets.MY_EMAIL }}
+        GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+      run: python crawler.py
