@@ -3,223 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>寶貝的好習慣集點卡</title>
+    <title>寶貝的榮譽徽章收藏館</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --primary-color: #FF7B94;
             --bg-color: #FFF5F7;
+            --gold: #FFD700;
         }
         body {
             font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
             background-color: var(--bg-color);
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             text-align: center;
             color: #4A4A4A;
             user-select: none;
-            -webkit-user-select: none; /* 防止小孩長按文字跳出選單 */
-            touch-action: manipulation; /* 優化手機點擊延遲 */
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
-        h1 { color: var(--primary-color); font-size: 2rem; margin-bottom: 5px; }
-        .subtitle { font-size: 1.1rem; color: #888; margin-bottom: 20px; }
+        h1 { color: var(--primary-color); font-size: 1.8rem; margin: 10px 0 5px 0; text-shadow: 1px 1px 2px white; }
+        .subtitle { font-size: 1rem; color: #666; margin-bottom: 20px; }
         
-        /* 任務卡片區 */
-        .task-container {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
+        /* 每日任務區 */
+        .section-title { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); text-align: left; max-width: 500px; margin: 10px auto; padding-left: 10px; }
+        .task-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 25px; }
         .task-card {
-            background: white;
-            border: 3px solid #FFE0E6;
-            border-radius: 20px;
-            padding: 15px;
-            width: 100px;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.05);
-            cursor: pointer;
-            transition: transform 0.1s;
-            -webkit-tap-highlight-color: transparent; /* 去除手機點擊時的醜藍色陰影 */
+            background: white; border: 3px solid #FFE0E6; border-radius: 20px; padding: 12px 8px; width: 85px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; position: relative;
         }
-        .task-card:active { transform: scale(0.9); }
-        .task-icon { font-size: 2.5rem; margin-bottom: 5px; pointer-events: none; }
-        .task-name { font-size: 1rem; font-weight: bold; pointer-events: none; }
+        .task-card:active { transform: scale(0.95); }
+        .task-card.completed { background: #E8F5E9; border-color: #81C784; opacity: 0.8; }
+        .task-icon { font-size: 2.2rem; margin-bottom: 5px; }
+        .task-name { font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+        .check-badge { position: absolute; top: -5px; right: -5px; background: #4CAF50; color: white; border-radius: 50%; width: 22px; height: 22px; display: none; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; border: 2px solid white; }
+        .task-card.completed .check-badge { display: flex; }
 
-        /* 集點板區 */
-        .grid-container {
-            background: white;
-            border-radius: 25px;
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            box-shadow: 0 10px 25px rgba(255, 123, 148, 0.15);
-            border: 4px dashed var(--primary-color);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .slot {
-            aspect-ratio: 1;
-            background: #F0F0F0;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            border: 2px dashed #CCC;
-            transition: all 0.3s;
-        }
-        .slot.active {
-            background: #FFE3E8;
-            border: 2px solid var(--primary-color);
-            animation: pop 0.3s ease-in-out;
-        }
-        
-        /* 按鈕與重置 */
-        .btn {
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 1.1rem;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 5px 10px rgba(255, 75, 110, 0.3);
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn:active { transform: translateY(2px); }
+        /* 進度條區 */
+        .progress-box { background: white; border-radius: 20px; padding: 15px; max-width: 470px; margin: 0 auto 25px auto; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid #FFE0E6; }
+        .progress-text { font-size: 1rem; font-weight: bold; margin-bottom: 10px; color: #555; }
+        .star-row { display: flex; justify-content: space-around; font-size: 1.8rem; margin-bottom: 5px; }
+        .star-slot { color: #E0E0E0; transition: all 0.3s; transform: scale(0.9); }
+        .star-slot.active { color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.6); animation: pop 0.3s ease-in-out; transform: scale(1.1); }
 
-        @keyframes pop {
-            0% { transform: scale(0.5); }
-            100% { transform: scale(1); }
+        /* 徽章展示櫃 */
+        .showcase-box { background: #FFF; border-radius: 25px; padding: 15px; max-width: 470px; margin: 0 auto; border: 3px dashed var(--primary-color); min-height: 120px; }
+        .badge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
+        .collected-badge {
+            background: #FFF9FA; border: 2px solid #FFE0E6; border-radius: 15px; padding: 8px; font-size: 1.8rem;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.02); animation: pop 0.4s ease-in-out;
         }
+        .badge-label { font-size: 0.7rem; color: #888; margin-top: 3px; font-weight: bold; white-space: nowrap; }
+        .empty-text { color: #BBB; font-size: 0.9rem; margin-top: 40px; font-style: italic; }
+
+        @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
+        button { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
 <body>
 
-    <h1>🌟 寶貝的集點大冒險 🌟</h1>
-    <div class="subtitle">集滿 5 個星星，就可以換一個冰淇淋（或看卡通）喔！</div>
+    <h1>👑 寶貝的榮譽徽章收藏館 👑</h1>
+    <div class="subtitle">每天做好生活小事情，就能累積星星換美麗徽章唷！</div>
 
+    <div class="section-title">✨ 今日好習慣挑戰</div>
     <div class="task-container">
-        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
+        <button class="task-card" id="task_teeth" onclick="toggleTask('task_teeth')">
+            <div class="check-badge">✓</div>
             <div class="task-icon">🦷</div>
             <div class="task-name">乖乖刷牙</div>
         </button>
-        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
+        <button class="task-card" id="task_bath" onclick="toggleTask('task_bath')">
+            <div class="check-badge">✓</div>
+            <div class="task-icon">🛁</div>
+            <div class="task-name">開心洗澡</div>
+        </button>
+        <button class="task-card" id="task_eat" onclick="toggleTask('task_eat')">
+            <div class="check-badge">✓</div>
             <div class="task-icon">🥣</div>
             <div class="task-name">把飯吃光</div>
         </button>
-        <button class="task-card" onclick="addPoint()" style="border: 3px solid #FFE0E6;">
+        <button class="task-card" id="task_toys" onclick="toggleTask('task_toys')">
+            <div class="check-badge">✓</div>
             <div class="task-icon">🧸</div>
-            <div class="task-name">收好玩具</div>
+            <div class="task-name">收拾玩具</div>
+        </button>
+        <button class="task-card" id="task_sleep" onclick="toggleTask('task_sleep')">
+            <div class="check-badge">✓</div>
+            <div class="task-icon">🛏️</div>
+            <div class="task-name">乖乖睡覺</div>
         </button>
     </div>
 
-    <div class="grid-container">
-        <div class="grid" id="stampGrid">
-            <div class="slot">1</div>
-            <div class="slot">2</div>
-            <div class="slot">3</div>
-            <div class="slot">4</div>
-            <div class="slot">5</div>
+    <div class="progress-box">
+        <div class="progress-text" id="progressText">🌟 再得到 5 顆星星就可以抽徽章囉！</div>
+        <div class="star-row">
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
         </div>
-        <button class="btn" onclick="resetPoints()">重置集點卡</button>
+    </div>
+
+    <div class="section-title">🏆 我的皇家徽章展示櫃 (<span id="badgeCount">0</span>)</div>
+    <div class="showcase-box">
+        <div id="emptyMessage" class="empty-text">目前還沒有徽章，跟著爸爸媽媽一起努力吧！</div>
+        <div class="badge-grid" id="badgeGrid"></div>
     </div>
 
     <script>
-        const MAX_POINTS = 5;
-        let currentPoints = parseInt(localStorage.getItem('baby_points')) || 0;
-        let audioCtx = null; // 延遲初始化音訊，繞過 iOS 限制
-        
+        // 公主與夢幻系列徽章庫
+        const AVAILABLE_BADGES = [
+            { icon: '👸', name: '白雪公主' }, { icon: '🧜‍♀️', name: '美人魚' }, 
+            { icon: '🧚‍♀️', name: '奇妙仙子' }, { icon: '👑', name: '閃亮皇冠' },
+            { icon: '💎', name: '夢幻粉鑽' }, { icon: '🦄', name: '彩虹獨角獸' },
+            { icon: '🏰', name: '夢幻城堡' }, { icon: '🪄', name: '魔法神棒' },
+            { icon: '🩰', name: '芭蕾舞鞋' }, { icon: '🐱', name: '皇室小貓' }
+        ];
+
+        let currentStars = parseInt(localStorage.getItem('baby_stars_count')) || 0;
+        let collectedBadges = JSON.parse(localStorage.getItem('baby_badges_list')) || [];
+        let taskState = JSON.parse(localStorage.getItem('baby_tasks_today')) || { date: '', teeth: false, bath: false, eat: false, toys: false, sleep: false };
+        let audioCtx = null;
+
+        // 檢查日期自動重置
+        const todayStr = new Date().toDateString();
+        if (taskState.date !== todayStr) {
+            taskState = { date: todayStr, teeth: false, bath: false, eat: false, toys: false, sleep: false };
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+        }
+
         updateUI();
 
-        // 點擊卡片加點
-        function addPoint() {
-            // 在使用者第一次點擊時，啟動音訊環境（解鎖 iOS 聲音限制）
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            if (currentPoints >= MAX_POINTS) {
-                playTone(150, 'triangle', 0.3);
-                alert("已經集滿囉！快去找爸爸媽媽換獎勵！");
-                return;
-            }
-
-            currentPoints++;
-            localStorage.setItem('baby_points', currentPoints);
-            updateUI();
+        function toggleTask(taskId) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // 叮咚音效
+            const taskKey = taskId.replace('task_', '');
+            if (taskState[taskKey]) return;
+
+            taskState[taskKey] = true;
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+
+            currentStars++;
+            
+            // 叮咚三連音
             playTone(523.25, 'sine', 0.15);
-            setTimeout(() => playTone(659.25, 'sine', 0.2), 150);
+            setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
+            setTimeout(() => playTone(783.99, 'sine', 0.2), 200);
 
-            if (currentPoints === MAX_POINTS) {
-                setTimeout(() => {
-                    playTone(880, 'sine', 0.1); 
-                    setTimeout(() => playTone(1046.5, 'sine', 0.4), 100);
-                    
-                    // 噴紙屑
-                    confetti({
-                        particleCount: 150,
-                        spread: 80,
-                        origin: { y: 0.6 }
-                    });
-                }, 500);
-            }
-        }
-
-        function updateUI() {
-            const slots = document.querySelectorAll('.slot');
-            slots.forEach((slot, index) => {
-                if (index < currentPoints) {
-                    slot.classList.add('active');
-                    slot.innerText = '⭐';
-                } else {
-                    slot.classList.remove('active');
-                    slot.innerText = index + 1;
-                }
-            });
-        }
-
-        function resetPoints() {
-            if(confirm("確定要清除點數，重新開始一張新的嗎？")) {
-                currentPoints = 0;
-                localStorage.setItem('baby_points', currentPoints);
+            if (currentStars >= 5) {
+                currentStars = 0;
+                localStorage.setItem('baby_stars_count', currentStars);
+                setTimeout(rewardBadge, 600);
+            } else {
+                localStorage.setItem('baby_stars_count', currentStars);
                 updateUI();
             }
         }
 
-        // 優化後的發聲器，即使失敗也不會卡死整個程式
+        function rewardBadge() {
+            const randomIndex = Math.floor(Math.random() * AVAILABLE_BADGES.length);
+            const newBadge = AVAILABLE_BADGES[randomIndex];
+            
+            collectedBadges.push(newBadge);
+            localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
+            
+            updateUI();
+
+            // 慶祝音效
+            playTone(523.25, 'sine', 0.1); setTimeout(() => playTone(659.25, 'sine', 0.1), 80);
+            setTimeout(() => playTone(783.99, 'sine', 0.1), 160); setTimeout(() => playTone(1046.5, 'sine', 0.4), 240);
+
+            // 噴紙屑
+            confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
+
+            setTimeout(() => {
+                alert(`🎉 太棒了！你表現得超級好！\n獲得了一個全新的【${newBadge.icon} ${newBadge.name}徽章】！\n快去展示櫃看看吧！`);
+            }, 300);
+        }
+
+        function updateUI() {
+            document.getElementById('task_teeth').className = 'task-card' + (taskState.teeth ? ' completed' : '');
+            document.getElementById('task_bath').className = 'task-card' + (taskState.bath ? ' completed' : '');
+            document.getElementById('task_eat').className = 'task-card' + (taskState.eat ? ' completed' : '');
+            document.getElementById('task_toys').className = 'task-card' + (taskState.toys ? ' completed' : '');
+            document.getElementById('task_sleep').className = 'task-card' + (taskState.sleep ? ' completed' : '');
+
+            const starSlots = document.querySelectorAll('.star-slot');
+            starSlots.forEach((slot, index) => {
+                if (index < currentStars) {
+                    slot.className = 'star-slot active';
+                    slot.innerText = '★';
+                } else {
+                    slot.className = 'star-slot';
+                    slot.innerText = '☆';
+                }
+            });
+            document.getElementById('progressText').innerText = `🌟 再得到 ${5 - currentStars} 顆星星就可以抽徽章囉！`;
+
+            const badgeGrid = document.getElementById('badgeGrid');
+            const emptyMessage = document.getElementById('emptyMessage');
+            document.getElementById('badgeCount').innerText = collectedBadges.length;
+
+            badgeGrid.innerHTML = '';
+            if (collectedBadges.length === 0) {
+                emptyMessage.style.display = 'block';
+            } else {
+                emptyMessage.style.display = 'none';
+                collectedBadges.forEach(badge => {
+                    const badgeEl = document.createElement('div');
+                    badgeEl.className = 'collected-badge';
+                    badgeEl.innerHTML = `<div>${badge.icon}</div><div class="badge-label">${badge.name}</div>`;
+                    badgeGrid.appendChild(badgeEl);
+                });
+            }
+        }
+
         function playTone(freq, type, duration) {
             try {
                 if (!audioCtx) return;
-                // 確保音訊環境沒有被掛起（iOS 常見狀況）
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
+                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
-                
                 oscillator.type = type;
                 oscillator.frequency.value = freq;
-                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-                
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.log("音效播放被瀏覽器擋住，但不影響集點功能", e);
-            }
+                oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
+            } catch (e) { console.log(e); }
         }
     </script>
 </body>
