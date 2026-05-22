@@ -57,6 +57,12 @@
         .badge-label { font-size: 0.7rem; color: #888; margin-top: 3px; font-weight: bold; white-space: nowrap; }
         .empty-text { color: #BBB; font-size: 0.9rem; margin-top: 40px; font-style: italic; }
 
+        /* 🛠️ 爸媽測試控制台樣式 */
+        .admin-panel { background: #F5F5F5; border: 2px solid #DDD; border-radius: 15px; padding: 15px; max-width: 470px; margin: 40px auto 10px auto; }
+        .admin-title { font-size: 0.9rem; font-weight: bold; color: #666; margin-bottom: 10px; }
+        .admin-btn { background: #78909C; color: white; border: none; padding: 8px 15px; font-size: 0.85rem; border-radius: 8px; cursor: pointer; margin: 5px; font-weight: bold; }
+        .admin-btn.danger { background: #E53935; }
+
         @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
         button { -webkit-tap-highlight-color: transparent; }
     </style>
@@ -112,6 +118,12 @@
         <div class="badge-grid" id="badgeGrid"></div>
     </div>
 
+    <div class="admin-panel">
+        <div class="admin-title">🛠️ 爸爸媽媽測試控制台</div>
+        <button class="admin-btn" onclick="testUnlockTasks()">🔓 解鎖今日任務（可重複測試點擊）</button>
+        <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置（清除所有點數與徽章）</button>
+    </div>
+
     <script>
         // 公主與夢幻系列徽章庫
         const AVAILABLE_BADGES = [
@@ -134,107 +146,4 @@
             localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
         }
 
-        updateUI();
-
-        function toggleTask(taskId) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            const taskKey = taskId.replace('task_', '');
-            if (taskState[taskKey]) return;
-
-            taskState[taskKey] = true;
-            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
-
-            currentStars++;
-            
-            // 叮咚三連音
-            playTone(523.25, 'sine', 0.15);
-            setTimeout(() => playTone(659.25, 'sine', 0.15), 100);
-            setTimeout(() => playTone(783.99, 'sine', 0.2), 200);
-
-            if (currentStars >= 5) {
-                currentStars = 0;
-                localStorage.setItem('baby_stars_count', currentStars);
-                setTimeout(rewardBadge, 600);
-            } else {
-                localStorage.setItem('baby_stars_count', currentStars);
-                updateUI();
-            }
-        }
-
-        function rewardBadge() {
-            const randomIndex = Math.floor(Math.random() * AVAILABLE_BADGES.length);
-            const newBadge = AVAILABLE_BADGES[randomIndex];
-            
-            collectedBadges.push(newBadge);
-            localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
-            
-            updateUI();
-
-            // 慶祝音效
-            playTone(523.25, 'sine', 0.1); setTimeout(() => playTone(659.25, 'sine', 0.1), 80);
-            setTimeout(() => playTone(783.99, 'sine', 0.1), 160); setTimeout(() => playTone(1046.5, 'sine', 0.4), 240);
-
-            // 噴紙屑
-            confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
-
-            setTimeout(() => {
-                alert(`🎉 太棒了！你表現得超級好！\n獲得了一個全新的【${newBadge.icon} ${newBadge.name}徽章】！\n快去展示櫃看看吧！`);
-            }, 300);
-        }
-
-        function updateUI() {
-            document.getElementById('task_teeth').className = 'task-card' + (taskState.teeth ? ' completed' : '');
-            document.getElementById('task_bath').className = 'task-card' + (taskState.bath ? ' completed' : '');
-            document.getElementById('task_eat').className = 'task-card' + (taskState.eat ? ' completed' : '');
-            document.getElementById('task_toys').className = 'task-card' + (taskState.toys ? ' completed' : '');
-            document.getElementById('task_sleep').className = 'task-card' + (taskState.sleep ? ' completed' : '');
-
-            const starSlots = document.querySelectorAll('.star-slot');
-            starSlots.forEach((slot, index) => {
-                if (index < currentStars) {
-                    slot.className = 'star-slot active';
-                    slot.innerText = '★';
-                } else {
-                    slot.className = 'star-slot';
-                    slot.innerText = '☆';
-                }
-            });
-            document.getElementById('progressText').innerText = `🌟 再得到 ${5 - currentStars} 顆星星就可以抽徽章囉！`;
-
-            const badgeGrid = document.getElementById('badgeGrid');
-            const emptyMessage = document.getElementById('emptyMessage');
-            document.getElementById('badgeCount').innerText = collectedBadges.length;
-
-            badgeGrid.innerHTML = '';
-            if (collectedBadges.length === 0) {
-                emptyMessage.style.display = 'block';
-            } else {
-                emptyMessage.style.display = 'none';
-                collectedBadges.forEach(badge => {
-                    const badgeEl = document.createElement('div');
-                    badgeEl.className = 'collected-badge';
-                    badgeEl.innerHTML = `<div>${badge.icon}</div><div class="badge-label">${badge.name}</div>`;
-                    badgeGrid.appendChild(badgeEl);
-                });
-            }
-        }
-
-        function playTone(freq, type, duration) {
-            try {
-                if (!audioCtx) return;
-                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.type = type;
-                oscillator.frequency.value = freq;
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.start(); oscillator.stop(audioCtx.currentTime + duration);
-            } catch (e) { console.log(e); }
-        }
-    </script>
-</body>
-</html>
+        update
