@@ -32,16 +32,19 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid var(--border-color);
         }
         
-        /* 雙欄位排版 */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 5px 0; }
         .stat-box { background: #F8FAFC; padding: 10px; border-radius: 12px; border: 1px solid #E2E8F0; }
         .stat-label { font-size: 0.8rem; color: #777; font-weight: bold; margin-bottom: 3px; }
         .amount-display { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
         .amount-display.week { color: var(--secondary); }
         
-        .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 15px; }
+        .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 10px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
         
+        /* 📅 補記功能列樣式 */
+        .helper-row { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 15px; font-size: 0.9rem; color: #666; font-weight: bold; }
+        .helper-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
         .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
         .cat-btn {
             background: white; border: 2px solid var(--border-color); border-radius: 15px;
@@ -54,7 +57,6 @@
         .sync-status { font-size: 0.8rem; color: #999; margin-top: 8px; }
         .refresh-btn { background: #78909C; color: white; border: none; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; cursor: pointer; font-weight: bold; margin-top: 5px; }
 
-        /* 📝 明細清單樣式 */
         .history-title { text-align: left; font-size: 0.95rem; font-weight: bold; color: #555; margin: 5px 0 10px 5px; display: flex; justify-content: space-between; }
         .history-list { max-height: 220px; overflow-y: auto; padding-right: 3px; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; border-bottom: 1px dashed #EEF2F6; font-size: 0.9rem; }
@@ -86,6 +88,11 @@
 
     <div class="card">
         <input type="number" id="amountInput" class="input-box" placeholder="輸入金額 (例如: 250)" inputmode="numeric">
+        
+        <div class="helper-row">
+            <input type="checkbox" id="yesterdayCheck">
+            <label id="yesterdayLabel" for="yesterdayCheck">補記昨天的帳 (自動減一天)</label>
+        </div>
         
         <div class="category-grid">
             <button class="cat-btn" onclick="sendToCloud('🛒', '買菜/超市')">
@@ -128,9 +135,20 @@
         const ENTRY_AMOUNT = "entry.1179564707"; 
 
         fetchCloudTotal();
+        updateYesterdayLabel(); // 顯示動態昨天日期
+
+        // 顯示昨天是幾月幾號的小提示
+        function updateYesterdayLabel() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const m = yesterday.getMonth() + 1;
+            const d = yesterday.getDate();
+            document.getElementById('yesterdayLabel').innerText = `補記昨天的帳 (${m}/${d})`;
+        }
 
         function sendToCloud(icon, category) {
             const amountInput = document.getElementById('amountInput');
+            const yesterdayCheck = document.getElementById('yesterdayCheck');
             const amount = parseInt(amountInput.value);
 
             if (!amount || amount <= 0) {
@@ -140,10 +158,15 @@
 
             document.getElementById('syncStatus').innerText = "⚡ 正在同步至雲端...";
             
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
+            // 判斷是否勾選補記昨天
+            const targetDate = new Date();
+            if (yesterdayCheck.checked) {
+                targetDate.setDate(targetDate.getDate() - 1);
+            }
+
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
             const targetDateStr = `${year}-${month}-${day}`;
 
             const params = new URLSearchParams();
@@ -162,6 +185,7 @@
                 document.getElementById('syncStatus').innerText = "✅ 成功寫入雲端！更新中...";
                 amountInput.value = '';
                 amountInput.blur();
+                yesterdayCheck.checked = false; // 送出後自動取消勾選
                 setTimeout(fetchCloudTotal, 2000);
             }).catch(err => {
                 alert("雲端傳送失敗，請檢查網路或設定！");
@@ -180,7 +204,7 @@
                     const lines = text.split("\n");
                     let todayTotal = 0;
                     let weekTotal = 0;
-                    let records = []; // 用來存明細
+                    let records = [];
 
                     for (let i = 1; i < lines.length; i++) {
                         if (!lines[i].trim()) continue;
@@ -203,17 +227,14 @@
                                 
                                 const rowDate = new Date(rYear, rMonth, rDay);
 
-                                // 1. 今日加總
                                 if (rYear === now.getFullYear() && rMonth === now.getMonth() && rDay === now.getDate()) {
                                     todayTotal += amountInRow;
                                 }
 
-                                // 2. 本週加總
                                 if (rowDate >= sevenDaysAgo && rowDate <= todayMidnight) {
                                     weekTotal += amountInRow;
                                 }
 
-                                // 3. 收集明細資料 (格式化日期顯示如: 05/25)
                                 const displayMonth = String(rMonth + 1).padStart(2, '0');
                                 const displayDay = String(rDay).padStart(2, '0');
                                 records.push({
@@ -225,11 +246,9 @@
                         }
                     }
 
-                    // 更新統計金額
                     document.getElementById('cloudTotal').innerText = todayTotal.toLocaleString('zh-TW');
                     document.getElementById('weekTotal').innerText = weekTotal.toLocaleString('zh-TW');
                     
-                    // 渲染明細清單 (由新到舊反轉，並只取最新 15 筆)
                     records.reverse();
                     const listContainer = document.getElementById('historyList');
                     if (records.length > 0) {
