@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="家庭記帳">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon" href="my-icon.png">
 
     <style>
         :root {
@@ -41,18 +41,18 @@
         .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 10px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
         
-        /* 📅 補記功能列樣式 */
         .helper-row { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 15px; font-size: 0.9rem; color: #666; font-weight: bold; }
         .helper-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 
-        .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        /* 🌟 升級為 4 欄位排版，容納 12 個明確品項 */
+        .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 5px; }
         .cat-btn {
-            background: white; border: 2px solid var(--border-color); border-radius: 15px;
-            padding: 10px; cursor: pointer; transition: all 0.2s;
+            background: white; border: 1.5px solid var(--border-color); border-radius: 12px;
+            padding: 8px 4px; cursor: pointer; transition: all 0.2s;
         }
         .cat-btn:active { transform: scale(0.95); background: #F4F8FA; }
-        .cat-icon { font-size: 1.8rem; margin-bottom: 3px; }
-        .cat-name { font-size: 0.85rem; font-weight: bold; color: #555; }
+        .cat-icon { font-size: 1.5rem; margin-bottom: 2px; }
+        .cat-name { font-size: 0.75rem; font-weight: bold; color: #555; white-space: nowrap; }
 
         .sync-status { font-size: 0.8rem; color: #999; margin-top: 8px; }
         .refresh-btn { background: #78909C; color: white; border: none; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; cursor: pointer; font-weight: bold; margin-top: 5px; }
@@ -91,27 +91,47 @@
         
         <div class="helper-row">
             <input type="checkbox" id="yesterdayCheck">
-            <label id="yesterdayLabel" for="yesterdayCheck">補記昨天的帳 (自動減一天)</label>
+            <label id="yesterdayLabel" for="yesterdayCheck">補記昨天的帳</label>
         </div>
         
         <div class="category-grid">
-            <button class="cat-btn" onclick="sendToCloud('🛒', '買菜/超市')">
-                <div class="cat-icon">🛒</div><div class="cat-name">買菜/超市</div>
+            <button class="cat-btn" onclick="sendToCloud('🛒', '食材買菜')">
+                <div class="cat-icon">🛒</div><div class="cat-name">食材買菜</div>
             </button>
-            <button class="cat-btn" onclick="sendToCloud('🍔', '外食/餐廳')">
-                <div class="cat-icon">🍔</div><div class="cat-name">外食/餐廳</div>
+            <button class="cat-btn" onclick="sendToCloud('🍳', '早餐/早午餐')">
+                <div class="cat-icon">🍳</div><div class="cat-name">早餐</div>
             </button>
-            <button class="cat-btn" onclick="sendToCloud('⚡', '水電/固定開銷')">
-                <div class="cat-icon">⚡</div><div class="cat-name">水電/開銷</div>
+            <button class="cat-btn" onclick="sendToCloud('🍱', '午餐/便當')">
+                <div class="cat-icon">🍱</div><div class="cat-name">午餐</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('🍜', '晚餐/覓食')">
+                <div class="cat-icon">🍜</div><div class="cat-name">晚餐</div>
+            </button>
+
+            <button class="cat-btn" onclick="sendToCloud('☕', '飲料/咖啡')">
+                <div class="cat-icon">☕</div><div class="cat-name">飲料咖啡</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('🍓', '水果/零食')">
+                <div class="cat-icon">🍓</div><div class="cat-name">水果零食</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('🧻', '生活用品')">
+                <div class="cat-icon">🧻</div><div class="cat-name">日用品</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('👶', '育兒/寶貝')">
-                <div class="cat-icon">👶</div><div class="cat-name">育兒/寶貝</div>
+                <div class="cat-icon">👶</div><div class="cat-name">育兒寶貝</div>
             </button>
-            <button class="cat-btn" onclick="sendToCloud('🚗', '加油/交通')">
-                <div class="cat-icon">🚗</div><div class="cat-name">交通</div>
+
+            <button class="cat-btn" onclick="sendToCloud('⛽', '加油/交通')">
+                <div class="cat-icon">⛽</div><div class="cat-name">交通加油</div>
             </button>
-            <button class="cat-btn" onclick="sendToCloud('✨', '其他支出')">
-                <div class="cat-icon">✨</div><div class="cat-name">其他</div>
+            <button class="cat-btn" onclick="sendToCloud('⚡', '水電/固定帳單')">
+                <div class="cat-icon">⚡</div><div class="cat-name">固定開銷</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('🎁', '娛樂/聚餐')">
+                <div class="cat-icon">🎁</div><div class="cat-name">娛樂聚餐</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('✨', '其他雜支')">
+                <div class="cat-icon">✨</div><div class="cat-name">其他雜支</div>
             </button>
         </div>
     </div>
@@ -135,9 +155,8 @@
         const ENTRY_AMOUNT = "entry.1179564707"; 
 
         fetchCloudTotal();
-        updateYesterdayLabel(); // 顯示動態昨天日期
+        updateYesterdayLabel();
 
-        // 顯示昨天是幾月幾號的小提示
         function updateYesterdayLabel() {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -158,7 +177,6 @@
 
             document.getElementById('syncStatus').innerText = "⚡ 正在同步至雲端...";
             
-            // 判斷是否勾選補記昨天
             const targetDate = new Date();
             if (yesterdayCheck.checked) {
                 targetDate.setDate(targetDate.getDate() - 1);
@@ -185,7 +203,7 @@
                 document.getElementById('syncStatus').innerText = "✅ 成功寫入雲端！更新中...";
                 amountInput.value = '';
                 amountInput.blur();
-                yesterdayCheck.checked = false; // 送出後自動取消勾選
+                yesterdayCheck.checked = false;
                 setTimeout(fetchCloudTotal, 2000);
             }).catch(err => {
                 alert("雲端傳送失敗，請檢查網路或設定！");
