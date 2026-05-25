@@ -13,7 +13,7 @@
     <style>
         :root {
             --bg-color: #F0F4F8;
-            --primary: #4A90E2; /* 換成溫馨家庭藍調 */
+            --primary: #4A90E2; 
             --border-color: #D6E4F0;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -86,14 +86,13 @@
     </div>
 
     <script>
-// 🎯 請確保程式碼最頂部的設定是這段完全體：
+        // 🎯 經解析後百分之百精準的設定值
+        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdEdgUe4v1uMxAzEkVkjFpb-DbE4imU5zMhV_MPZD1FKQRnMQ/formResponse";
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXop8A33xFA2m-wyD4p1uhd_IgE118reLfZTyMbqvLnEscWujvbJTWICQAoor1y1XPFCXq4E7fhF5v/pub?output=csv";
 
-const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdEdgUe4v1uMxAzEkVkjFpb-DbE4imU5zMhV_MPZD1FKQRnMQ/formResponse";
-const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXop8A33xFA2m-wyD4p1uhd_IgE118reLfZTyMbqvLnEscWujvbJTWICQAoor1y1XPFCXq4E7fhF5v/pub?output=csv";
-
-const ENTRY_DATE = "entry.404542770";    // 日期 
-const ENTRY_ITEM = "entry.880135335";    // 項目
-const ENTRY_AMOUNT = "entry.1179564707"; // 金額
+        const ENTRY_DATE = "entry.404542770";    // 日期 
+        const ENTRY_ITEM = "entry.880135335";    // 項目
+        const ENTRY_AMOUNT = "entry.1179564707"; // 金額
 
         // 網頁開啟時，自動去雲端抓取今日總金額
         fetchCloudTotal();
@@ -109,26 +108,35 @@ const ENTRY_AMOUNT = "entry.1179564707"; // 金額
             }
 
             document.getElementById('syncStatus').innerText = "⚡ 正在同步至雲端...";
-            const todayStr = new Date().toLocaleDateString('zh-TW');
+            
+            // 修正點一：標準化日期格式，讓寫入與讀取時格式完全同步為 YYYY-MM-DD
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const targetDateStr = `${year}-${month}-${day}`;
 
-            // 建立動態表單傳送資料 (利用送出不跳轉技術)
-            const formData = new FormData();
-            formData.append(ENTRY_DATE, todayStr);
-            formData.append(ENTRY_ITEM, icon + " " + category);
-            formData.append(ENTRY_AMOUNT, amount);
+            // 修正點二：改用 URLSearchParams 傳送標準表單封包，Google 才會接收
+            const params = new URLSearchParams();
+            params.append(ENTRY_DATE, targetDateStr);
+            params.append(ENTRY_ITEM, icon + " " + category);
+            params.append(ENTRY_AMOUNT, amount);
 
             // 默默發送給 Google 表單
             fetch(GOOGLE_FORM_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params.toString()
             }).then(() => {
                 document.getElementById('syncStatus').innerText = "✅ 成功寫入雲端！更新中...";
                 amountInput.value = '';
                 amountInput.blur();
                 
-                // 延遲1.5秒等 Google 後台處理完，自動重新抓取最新總額
-                setTimeout(fetchCloudTotal, 1500);
+                // 延遲 2 秒等待 Google 後台處理完畢，自動重新抓取最新總額
+                setTimeout(fetchCloudTotal, 2000);
             }).catch(err => {
                 alert("雲端傳送失敗，請檢查網路或設定！");
                 console.error(err);
@@ -137,26 +145,36 @@ const ENTRY_AMOUNT = "entry.1179564707"; // 金額
 
         // 🧠 核心功能二：從 Google 試算表讀取今日加總
         function fetchCloudTotal() {
-            if (GOOGLE_SHEET_CSV_URL.includes("【")) {
-                document.getElementById('syncStatus').innerText = "💡 請先完成程式碼中的 Google 網址設定唷！";
-                return;
-            }
+            // 統一讀取與比對格式 (補零的橫線格式：YYYY-MM-DD)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
 
-            const todayStr = new Date().toLocaleDateString('zh-TW');
-
-            // 讀取 Google 試算表的公開 CSV 資料
-            fetch(GOOGLE_SHEET_CSV_URL + "?clearCache=" + new Date().getTime())
+            // 讀取 Google 試算表的公開 CSV 資料並強制清除緩存
+            fetch(GOOGLE_SHEET_CSV_URL + (GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?') + "clearCache=" + new Date().getTime())
                 .then(response => response.text())
                 .then(text => {
-                    // 解析 Excel CSV 格式，並計算「今天」的總金額
                     const lines = text.split("\n");
                     let todayTotal = 0;
 
                     for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        
                         const columns = lines[i].split(",");
                         if (columns.length >= 4) {
-                            const dateInRow = columns[1].replace(/"/g, '').trim(); // 欄位1: 日期
-                            const amountInRow = parseInt(columns[3].replace(/"/g, '').trim()) || 0; // 欄位3: 金額
+                            // 修正點三：相容 Google 寫入時可能帶有的各種日期格式間距
+                            let dateInRow = columns[1].replace(/"/g, '').trim(); 
+                            const amountInRow = parseInt(columns[3].replace(/"/g, '').trim()) || 0;
+                            
+                            // 統一將資料庫讀出來的斜線 / 換成橫線 -，並進行補零正規化比對
+                            if (dateInRow.includes('/')) {
+                                const parts = dateInRow.split('/');
+                                if(parts.length === 3) {
+                                    dateInRow = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                                }
+                            }
                             
                             if (dateInRow === todayStr) {
                                 todayTotal += amountInRow;
