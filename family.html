@@ -14,6 +14,7 @@
         :root {
             --bg-color: #F0F4F8;
             --primary: #4A90E2; 
+            --secondary: #5C6BC0;
             --border-color: #D6E4F0;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -31,7 +32,13 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid var(--border-color);
         }
         
-        .amount-display { font-size: 2.2rem; font-weight: bold; color: var(--primary); margin: 5px 0; }
+        /* 雙欄位排版 */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 5px 0; }
+        .stat-box { background: #F8FAFC; padding: 10px; border-radius: 12px; border: 1px solid #E2E8F0; }
+        .stat-label { font-size: 0.8rem; color: #777; font-weight: bold; margin-bottom: 3px; }
+        .amount-display { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .amount-display.week { color: var(--secondary); }
+        
         .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 15px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
         
@@ -44,8 +51,17 @@
         .cat-icon { font-size: 1.8rem; margin-bottom: 3px; }
         .cat-name { font-size: 0.85rem; font-weight: bold; color: #555; }
 
-        .sync-status { font-size: 0.8rem; color: #999; margin-top: 5px; }
+        .sync-status { font-size: 0.8rem; color: #999; margin-top: 8px; }
         .refresh-btn { background: #78909C; color: white; border: none; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+
+        /* 📝 明細清單樣式 */
+        .history-title { text-align: left; font-size: 0.95rem; font-weight: bold; color: #555; margin: 5px 0 10px 5px; display: flex; justify-content: space-between; }
+        .history-list { max-height: 220px; overflow-y: auto; padding-right: 3px; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; border-bottom: 1px dashed #EEF2F6; font-size: 0.9rem; }
+        .history-item:last-child { border-bottom: none; }
+        .item-date { color: #999; font-size: 0.75rem; font-family: monospace; }
+        .item-name { font-weight: 500; color: #444; margin-left: 8px; flex-grow: 1; text-align: left; }
+        .item-amount { font-weight: bold; color: #E53935; }
     </style>
 </head>
 <body>
@@ -54,8 +70,16 @@
     <div class="subtitle">雲端雙人即時同步，一起經營我們溫馨的家！</div>
 
     <div class="card">
-        <div style="font-size: 0.9rem; color: #777; font-weight: bold;">☁️ 今日家庭累計支出</div>
-        <div class="amount-display">$ <span id="cloudTotal">0</span></div>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-label">💰 今日累計支出</div>
+                <div class="amount-display">$ <span id="cloudTotal">0</span></div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">📅 近一週總支出</div>
+                <div class="amount-display week">$ <span id="weekTotal">0</span></div>
+            </div>
+        </div>
         <div class="sync-status" id="syncStatus">正在從雲端同步最新帳目...</div>
         <button class="refresh-btn" onclick="fetchCloudTotal()">🔄 手動重新整理雲端</button>
     </div>
@@ -85,19 +109,26 @@
         </div>
     </div>
 
+    <div class="card" style="padding-bottom: 10px;">
+        <div class="history-title">
+            <span>📝 近期消費明細 (含日期)</span>
+            <span style="font-size: 0.75rem; color: #999; font-weight: normal;">顯示最新 15 筆</span>
+        </div>
+        <div class="history-list" id="historyList">
+            <div style="color: #bbb; font-size: 0.85rem; padding: 20px 0;">暫無明細資料</div>
+        </div>
+    </div>
+
     <script>
-        // 🎯 經解析後百分之百精準的設定值
         const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdEdgUe4v1uMxAzEkVkjFpb-DbE4imU5zMhV_MPZD1FKQRnMQ/formResponse";
         const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXop8A33xFA2m-wyD4p1uhd_IgE118reLfZTyMbqvLnEscWujvbJTWICQAoor1y1XPFCXq4E7fhF5v/pub?output=csv";
 
-        const ENTRY_DATE = "entry.404542770";    // 日期 
-        const ENTRY_ITEM = "entry.880135335";    // 項目
-        const ENTRY_AMOUNT = "entry.1179564707"; // 金額
+        const ENTRY_DATE = "entry.404542770";    
+        const ENTRY_ITEM = "entry.880135335";    
+        const ENTRY_AMOUNT = "entry.1179564707"; 
 
-        // 網頁開啟時，自動去雲端抓取今日總金額
         fetchCloudTotal();
 
-        // 🧠 核心功能一：把資料遠端傳送到 Google 表單
         function sendToCloud(icon, category) {
             const amountInput = document.getElementById('amountInput');
             const amount = parseInt(amountInput.value);
@@ -109,20 +140,17 @@
 
             document.getElementById('syncStatus').innerText = "⚡ 正在同步至雲端...";
             
-            // 修正點一：標準化日期格式，讓寫入與讀取時格式完全同步為 YYYY-MM-DD
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             const targetDateStr = `${year}-${month}-${day}`;
 
-            // 修正點二：改用 URLSearchParams 傳送標準表單封包，Google 才會接收
             const params = new URLSearchParams();
             params.append(ENTRY_DATE, targetDateStr);
             params.append(ENTRY_ITEM, icon + " " + category);
             params.append(ENTRY_AMOUNT, amount);
 
-            // 默默發送給 Google 表單
             fetch(GOOGLE_FORM_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -134,8 +162,6 @@
                 document.getElementById('syncStatus').innerText = "✅ 成功寫入雲端！更新中...";
                 amountInput.value = '';
                 amountInput.blur();
-                
-                // 延遲 2 秒等待 Google 後台處理完畢，自動重新抓取最新總額
                 setTimeout(fetchCloudTotal, 2000);
             }).catch(err => {
                 alert("雲端傳送失敗，請檢查網路或設定！");
@@ -143,54 +169,82 @@
             });
         }
 
-        // 🧠 核心功能二：從 Google 試算表讀取今日加總（終極模糊比對防錯版）
         function fetchCloudTotal() {
-            // 1. 取得網頁本地的今天 年、月、日 數字
             const now = new Date();
-            const tYear = now.getFullYear();
-            const tMonth = now.getMonth() + 1;
-            const tDay = now.getDate();
+            const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const sevenDaysAgo = new Date(todayMidnight.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-            // 讀取 Google 試算表的公開 CSV 資料並強制清除緩存
             fetch(GOOGLE_SHEET_CSV_URL + (GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?') + "clearCache=" + new Date().getTime())
                 .then(response => response.text())
                 .then(text => {
                     const lines = text.split("\n");
                     let todayTotal = 0;
+                    let weekTotal = 0;
+                    let records = []; // 用來存明細
 
                     for (let i = 1; i < lines.length; i++) {
                         if (!lines[i].trim()) continue;
                         
-                        // 使用正則表達式拆分 CSV，防止項目名稱裡有逗號導致錯位
                         const columns = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                         
                         if (columns.length >= 4) {
-                            // 欄位 1 通常是時間戳記或日期
                             let dateRaw = columns[1].replace(/"/g, '').trim(); 
-                            // 欄位 3 是金額
+                            let itemRaw = columns[2].replace(/"/g, '').trim();
                             const amountInRow = parseInt(columns[3].replace(/"/g, '').trim()) || 0;
                             
-                            // 將試算表的日期字串中的所有數字（年、月、日）全部挖出來
                             const dateParts = dateRaw.match(/\d+/g);
                             
                             if (dateParts && dateParts.length >= 3) {
                                 let rYear = parseInt(dateParts[0]);
-                                let rMonth = parseInt(dateParts[1]);
+                                let rMonth = parseInt(dateParts[1]) - 1; 
                                 let rDay = parseInt(dateParts[2]);
                                 
-                                // 如果年份是兩位數（如 26 年），自動補足成 2026
                                 if (rYear < 100) rYear += 2000; 
                                 
-                                // 只要「年、月、日」數字完全吻合，就計入今日總額！
-                                if (rYear === tYear && rMonth === tMonth && rDay === tDay) {
+                                const rowDate = new Date(rYear, rMonth, rDay);
+
+                                // 1. 今日加總
+                                if (rYear === now.getFullYear() && rMonth === now.getMonth() && rDay === now.getDate()) {
                                     todayTotal += amountInRow;
                                 }
+
+                                // 2. 本週加總
+                                if (rowDate >= sevenDaysAgo && rowDate <= todayMidnight) {
+                                    weekTotal += amountInRow;
+                                }
+
+                                // 3. 收集明細資料 (格式化日期顯示如: 05/25)
+                                const displayMonth = String(rMonth + 1).padStart(2, '0');
+                                const displayDay = String(rDay).padStart(2, '0');
+                                records.push({
+                                    dateLabel: `${displayMonth}/${displayDay}`,
+                                    item: itemRaw,
+                                    amount: amountInRow
+                                });
                             }
                         }
                     }
 
-                    // 更新畫面的金額與時間
+                    // 更新統計金額
                     document.getElementById('cloudTotal').innerText = todayTotal.toLocaleString('zh-TW');
+                    document.getElementById('weekTotal').innerText = weekTotal.toLocaleString('zh-TW');
+                    
+                    // 渲染明細清單 (由新到舊反轉，並只取最新 15 筆)
+                    records.reverse();
+                    const listContainer = document.getElementById('historyList');
+                    if (records.length > 0) {
+                        const maxDisplay = records.slice(0, 15);
+                        listContainer.innerHTML = maxDisplay.map(r => `
+                            <div class="history-item">
+                                <span class="item-date">${r.dateLabel}</span>
+                                <span class="item-name">${r.item}</span>
+                                <span class="item-amount">$${r.amount.toLocaleString('zh-TW')}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        listContainer.innerHTML = `<div style="color: #bbb; font-size: 0.85rem; padding: 20px 0;">暫無明細資料</div>`;
+                    }
+
                     document.getElementById('syncStatus').innerText = `☁️ 雲端同步成功 (最後更新: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
                 })
                 .catch(err => {
