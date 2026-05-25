@@ -38,13 +38,13 @@
         .amount-display { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
         .amount-display.month { color: var(--secondary); }
         
-        .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 10px; }
+        /* 調整輸入框：改為 text 型態以支援輸入備註，placeholder 增加提示 */
+        .input-box { width: 100%; padding: 12px; font-size: 1.2rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 10px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
         
         .helper-row { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 15px; font-size: 0.9rem; color: #666; font-weight: bold; }
         .helper-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 
-        /* 4 欄位排版，容納 12 個明確品項 */
         .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 5px; }
         .cat-btn {
             background: white; border: 1.5px solid var(--border-color); border-radius: 12px;
@@ -87,7 +87,7 @@
     </div>
 
     <div class="card">
-        <input type="number" id="amountInput" class="input-box" placeholder="輸入金額 (例如: 250)" inputmode="numeric">
+        <input type="text" id="amountInput" class="input-box" placeholder="輸入金額 (如: 1000 水彩課)">
         
         <div class="helper-row">
             <input type="checkbox" id="yesterdayCheck">
@@ -165,15 +165,29 @@
             document.getElementById('yesterdayLabel').innerText = `補記昨天的帳 (${m}/${d})`;
         }
 
+        // 🧠 核心升級：解析輸入框內的數字與文字
         function sendToCloud(icon, category) {
             const amountInput = document.getElementById('amountInput');
             const yesterdayCheck = document.getElementById('yesterdayCheck');
-            const amount = parseInt(amountInput.value);
+            const rawValue = amountInput.value.trim();
 
-            if (!amount || amount <= 0) {
+            if (!rawValue) {
                 alert("請先輸入金額唷！");
                 return;
             }
+
+            // 使用正則表達式，自動抓出開頭的數字作為金額，後面剩下的當作備註
+            const amountMatch = rawValue.match(/^(\d+)/);
+            if (!amountMatch) {
+                alert("請在輸入框開頭輸入正確的數字金額唷！(例如: 1000 水彩課)");
+                return;
+            }
+
+            const amount = parseInt(amountMatch[1]);
+            // 抓取金額後面的所有文字作為備註
+            let note = rawValue.substring(amountMatch[1].length).trim();
+            // 清理掉使用者可能順手打的符號如斜線、空格、逗號
+            note = note.replace(/^[\s\/,，_-]+/, ""); 
 
             document.getElementById('syncStatus').innerText = "⚡ 正在同步至雲端...";
             
@@ -187,9 +201,12 @@
             const day = String(targetDate.getDate()).padStart(2, '0');
             const targetDateStr = `${year}-${month}-${day}`;
 
+            // 如果有備註，就將品項包裝成「📚 小孩學費 (水彩課)」
+            const finalItemName = note ? `${icon} ${category} (${note})` : `${icon} ${category}`;
+
             const params = new URLSearchParams();
             params.append(ENTRY_DATE, targetDateStr);
-            params.append(ENTRY_ITEM, icon + " " + category);
+            params.append(ENTRY_ITEM, finalItemName);
             params.append(ENTRY_AMOUNT, amount);
 
             fetch(GOOGLE_FORM_URL, {
