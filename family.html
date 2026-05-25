@@ -14,7 +14,7 @@
         :root {
             --bg-color: #F0F4F8;
             --primary: #4A90E2; 
-            --secondary: #5C6BC0;
+            --secondary: #E67E22; 
             --border-color: #D6E4F0;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -36,7 +36,7 @@
         .stat-box { background: #F8FAFC; padding: 10px; border-radius: 12px; border: 1px solid #E2E8F0; }
         .stat-label { font-size: 0.8rem; color: #777; font-weight: bold; margin-bottom: 3px; }
         .amount-display { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
-        .amount-display.week { color: var(--secondary); }
+        .amount-display.month { color: var(--secondary); }
         
         .input-box { width: 100%; padding: 12px; font-size: 1.3rem; border: 2px solid var(--border-color); border-radius: 12px; text-align: center; font-weight: bold; color: #4A4A4A; margin-bottom: 10px; }
         .input-box:focus { border-color: var(--primary); outline: none; }
@@ -44,7 +44,7 @@
         .helper-row { display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 15px; font-size: 0.9rem; color: #666; font-weight: bold; }
         .helper-row input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 
-        /* 🌟 升級為 4 欄位排版，容納 12 個明確品項 */
+        /* 4 欄位排版，容納 12 個明確品項 */
         .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 5px; }
         .cat-btn {
             background: white; border: 1.5px solid var(--border-color); border-radius: 12px;
@@ -78,8 +78,8 @@
                 <div class="amount-display">$ <span id="cloudTotal">0</span></div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">📅 近一週總支出</div>
-                <div class="amount-display week">$ <span id="weekTotal">0</span></div>
+                <div class="stat-label">📅 <span id="monthLabel">本月</span>累計支出</div>
+                <div class="amount-display month">$ <span id="monthTotal">0</span></div>
             </div>
         </div>
         <div class="sync-status" id="syncStatus">正在從雲端同步最新帳目...</div>
@@ -95,37 +95,37 @@
         </div>
         
         <div class="category-grid">
+            <button class="cat-btn" onclick="sendToCloud('🏠', '房屋貸款')">
+                <div class="cat-icon">🏠</div><div class="cat-name">房屋貸款</div>
+            </button>
+            <button class="cat-btn" onclick="sendToCloud('📚', '小孩學費')">
+                <div class="cat-icon">📚</div><div class="cat-name">小孩學費</div>
+            </button>
             <button class="cat-btn" onclick="sendToCloud('🛒', '食材買菜')">
                 <div class="cat-icon">🛒</div><div class="cat-name">食材買菜</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('🍳', '早餐/早午餐')">
                 <div class="cat-icon">🍳</div><div class="cat-name">早餐</div>
             </button>
+
             <button class="cat-btn" onclick="sendToCloud('🍱', '午餐/便當')">
                 <div class="cat-icon">🍱</div><div class="cat-name">午餐</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('🍜', '晚餐/覓食')">
                 <div class="cat-icon">🍜</div><div class="cat-name">晚餐</div>
             </button>
-
             <button class="cat-btn" onclick="sendToCloud('☕', '飲料/咖啡')">
                 <div class="cat-icon">☕</div><div class="cat-name">飲料咖啡</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('🍓', '水果/零食')">
                 <div class="cat-icon">🍓</div><div class="cat-name">水果零食</div>
             </button>
+
             <button class="cat-btn" onclick="sendToCloud('🧻', '生活用品')">
                 <div class="cat-icon">🧻</div><div class="cat-name">日用品</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('👶', '育兒/寶貝')">
                 <div class="cat-icon">👶</div><div class="cat-name">育兒寶貝</div>
-            </button>
-
-            <button class="cat-btn" onclick="sendToCloud('⛽', '加油/交通')">
-                <div class="cat-icon">⛽</div><div class="cat-name">交通加油</div>
-            </button>
-            <button class="cat-btn" onclick="sendToCloud('⚡', '水電/固定帳單')">
-                <div class="cat-icon">⚡</div><div class="cat-name">固定開銷</div>
             </button>
             <button class="cat-btn" onclick="sendToCloud('🎁', '娛樂/聚餐')">
                 <div class="cat-icon">🎁</div><div class="cat-name">娛樂聚餐</div>
@@ -213,15 +213,17 @@
 
         function fetchCloudTotal() {
             const now = new Date();
-            const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const sevenDaysAgo = new Date(todayMidnight.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); 
+
+            document.getElementById('monthLabel').innerText = `${currentMonth + 1}月`;
 
             fetch(GOOGLE_SHEET_CSV_URL + (GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?') + "clearCache=" + new Date().getTime())
                 .then(response => response.text())
                 .then(text => {
                     const lines = text.split("\n");
                     let todayTotal = 0;
-                    let weekTotal = 0;
+                    let monthTotal = 0; 
                     let records = [];
 
                     for (let i = 1; i < lines.length; i++) {
@@ -242,15 +244,13 @@
                                 let rDay = parseInt(dateParts[2]);
                                 
                                 if (rYear < 100) rYear += 2000; 
-                                
-                                const rowDate = new Date(rYear, rMonth, rDay);
 
-                                if (rYear === now.getFullYear() && rMonth === now.getMonth() && rDay === now.getDate()) {
+                                if (rYear === currentYear && rMonth === currentMonth && rDay === now.getDate()) {
                                     todayTotal += amountInRow;
                                 }
 
-                                if (rowDate >= sevenDaysAgo && rowDate <= todayMidnight) {
-                                    weekTotal += amountInRow;
+                                if (rYear === currentYear && rMonth === currentMonth) {
+                                    monthTotal += amountInRow;
                                 }
 
                                 const displayMonth = String(rMonth + 1).padStart(2, '0');
@@ -265,7 +265,7 @@
                     }
 
                     document.getElementById('cloudTotal').innerText = todayTotal.toLocaleString('zh-TW');
-                    document.getElementById('weekTotal').innerText = weekTotal.toLocaleString('zh-TW');
+                    document.getElementById('monthTotal').innerText = monthTotal.toLocaleString('zh-TW');
                     
                     records.reverse();
                     const listContainer = document.getElementById('historyList');
