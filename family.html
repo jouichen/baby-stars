@@ -143,14 +143,13 @@
             });
         }
 
-        // 🧠 核心功能二：從 Google 試算表讀取今日加總
+        // 🧠 核心功能二：從 Google 試算表讀取今日加總（終極模糊比對防錯版）
         function fetchCloudTotal() {
-            // 統一讀取與比對格式 (補零的橫線格式：YYYY-MM-DD)
+            // 1. 取得網頁本地的今天 年、月、日 數字
             const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
+            const tYear = now.getFullYear();
+            const tMonth = now.getMonth() + 1;
+            const tDay = now.getDate();
 
             // 讀取 Google 試算表的公開 CSV 資料並強制清除緩存
             fetch(GOOGLE_SHEET_CSV_URL + (GOOGLE_SHEET_CSV_URL.includes('?') ? '&' : '?') + "clearCache=" + new Date().getTime())
@@ -162,26 +161,35 @@
                     for (let i = 1; i < lines.length; i++) {
                         if (!lines[i].trim()) continue;
                         
-                        const columns = lines[i].split(",");
+                        // 使用正則表達式拆分 CSV，防止項目名稱裡有逗號導致錯位
+                        const columns = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                        
                         if (columns.length >= 4) {
-                            // 修正點三：相容 Google 寫入時可能帶有的各種日期格式間距
-                            let dateInRow = columns[1].replace(/"/g, '').trim(); 
+                            // 欄位 1 通常是時間戳記或日期
+                            let dateRaw = columns[1].replace(/"/g, '').trim(); 
+                            // 欄位 3 是金額
                             const amountInRow = parseInt(columns[3].replace(/"/g, '').trim()) || 0;
                             
-                            // 統一將資料庫讀出來的斜線 / 換成橫線 -，並進行補零正規化比對
-                            if (dateInRow.includes('/')) {
-                                const parts = dateInRow.split('/');
-                                if(parts.length === 3) {
-                                    dateInRow = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                                }
-                            }
+                            // 將試算表的日期字串中的所有數字（年、月、日）全部挖出來
+                            const dateParts = dateRaw.match(/\d+/g);
                             
-                            if (dateInRow === todayStr) {
-                                todayTotal += amountInRow;
+                            if (dateParts && dateParts.length >= 3) {
+                                let rYear = parseInt(dateParts[0]);
+                                let rMonth = parseInt(dateParts[1]);
+                                let rDay = parseInt(dateParts[2]);
+                                
+                                // 如果年份是兩位數（如 26 年），自動補足成 2026
+                                if (rYear < 100) rYear += 2000; 
+                                
+                                // 只要「年、月、日」數字完全吻合，就計入今日總額！
+                                if (rYear === tYear && rMonth === tMonth && rDay === tDay) {
+                                    todayTotal += amountInRow;
+                                }
                             }
                         }
                     }
 
+                    // 更新畫面的金額與時間
                     document.getElementById('cloudTotal').innerText = todayTotal.toLocaleString('zh-TW');
                     document.getElementById('syncStatus').innerText = `☁️ 雲端同步成功 (最後更新: ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`;
                 })
