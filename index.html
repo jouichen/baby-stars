@@ -61,6 +61,7 @@
         .admin-panel { background: #F5F5F5; border: 2px solid #DDD; border-radius: 15px; padding: 15px; max-width: 470px; margin: 40px auto 10px auto; }
         .admin-title { font-size: 0.9rem; font-weight: bold; color: #666; margin-bottom: 10px; }
         .admin-btn { background: #78909C; color: white; border: none; padding: 8px 15px; font-size: 0.85rem; border-radius: 8px; cursor: pointer; margin: 5px; font-weight: bold; }
+        .admin-btn.warning { background: #FFA000; }
         .admin-btn.danger { background: #E53935; }
 
         @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
@@ -122,13 +123,12 @@
         <div class="admin-title">🛠️ 爸爸媽媽測試控制台</div>
         <button class="admin-btn" onclick="testUnlockTasks()">🔓 解鎖今日任務</button>
         <button class="admin-btn" onclick="testFastAddStar()">⭐ 快速直接+1星</button>
+        <button class="admin-btn warning" onclick="fixDuplicateBadges()">🔧 修正重複徽章（直接把魔法棒變走）</button>
         <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置</button>
     </div>
 
     <script>
-        // 🌟 擴充版超級徽章庫（共 25 個，分階段解鎖）
         const BADGE_POOL = {
-            // 第 1 輪基礎徽章（經典夢幻公主風）
             round1: [
                 { icon: '👸', name: '白雪公主' }, { icon: '🧜‍♀️', name: '美人魚' }, 
                 { icon: '🧚‍♀️', name: '奇妙仙子' }, { icon: '👑', name: '閃亮皇冠' },
@@ -136,14 +136,12 @@
                 { icon: '🪄', name: '魔法神棒' }, { icon: '🩰', name: '芭蕾舞鞋' }, 
                 { icon: '🐱', name: '皇室小貓' }, { icon: '🕊️', name: '和平白鴿' }
             ],
-            // 第 2 輪加入（新增超可愛皇家小動物系列）
             round2: [
                 { icon: '🐶', name: '皇家小狗' }, { icon: '🐰', name: '魔法毛兔' }, 
                 { icon: '🐻', name: '守護泰迪' }, { icon: '🐼', name: '功夫熊貓' }, 
                 { icon: '🦊', name: '聰明小狐' }, { icon: '🐿️', name: '幸運松鼠' },
                 { icon: '🦁', name: '勇敢小獅' }, { icon: '🐥', name: '元氣小雞' }
             ],
-            // 第 3 輪及以上終極加入（星空與甜點系列）
             round3Plus: [
                 { icon: '🦄', name: '彩虹獨角獸' }, { icon: '🌈', name: '七彩幸福虹' }, 
                 { icon: '🍓', name: '皇家草莓' }, { icon: '🍦', name: '甜心冰淇淋' }, 
@@ -164,12 +162,10 @@
 
         updateUI();
 
-        // 🧠 計算當前是第幾輪（每 10 個徽章算一輪完結）
         function getCurrentRound() {
             return Math.floor(collectedBadges.length / 10) + 1;
         }
 
-        // 🧠 配合輪數，第一輪 5 星，第二輪 10 星，第三輪 15 星...
         function getRequiredStars() {
             return getCurrentRound() * 5; 
         }
@@ -197,30 +193,24 @@
             }
         }
 
-        // 🧠 核心防重複與地圖擴充算法
+        // 🧠 強力防重複演算法：嚴格檢查「目前這一整輪」的所有歷史紀錄
         function rewardBadge() {
             const currentRound = getCurrentRound();
             
-            // 1. 根據目前第幾輪，動態建立這輪「可以使用」的總徽章庫
             let availablePool = [...BADGE_POOL.round1];
-            if (currentRound >= 2) {
-                availablePool = availablePool.concat(BADGE_POOL.round2);
-            }
-            if (currentRound >= 3) {
-                availablePool = availablePool.concat(BADGE_POOL.round3Plus);
-            }
+            if (currentRound >= 2) availablePool = availablePool.concat(BADGE_POOL.round2);
+            if (currentRound >= 3) availablePool = availablePool.concat(BADGE_POOL.round3Plus);
 
-            // 2. 找出這一輪（目前的 10 個區間內）女兒已經抽到了什麼
-            const currentRoundBadgesCount = collectedBadges.length % 10;
-            const thisRoundCollectedNames = collectedBadges.slice(collectedBadges.length - currentRoundBadgesCount).map(b => b.name);
+            // 【終極防線】算出這輪的起始點。例如：現在有 6 個徽章，這輪起點是 0；若有 12 個，這輪起點是 10。
+            const roundStartIndex = Math.floor(collectedBadges.length / 10) * 10;
+            // 抓出「這輪已經存在」的所有徽章名字
+            const thisRoundCollectedNames = collectedBadges.slice(roundStartIndex).map(b => b.name);
 
-            // 3. 过滤掉這一輪已經重複的，確保這 10 次抽獎絕不重複！
+            // 過濾掉任何已經在這輪出現過的名字
             let uncollected = availablePool.filter(badge => !thisRoundCollectedNames.includes(badge.name));
 
-            // 安全防線：如果極端情況下沒得選，就從全庫隨機挑
             if (uncollected.length === 0) uncollected = availablePool;
 
-            // 4. 抽獎
             const randomIndex = Math.floor(Math.random() * uncollected.length);
             const newBadge = uncollected[randomIndex];
             
@@ -231,13 +221,42 @@
             confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
 
             setTimeout(() => {
-                // 如果剛好拿滿一輪的 10 個
                 if (collectedBadges.length % 10 === 0) {
-                    alert(`👑 🎉 哇啊啊啊！太驚人了！！！\n妳成功闖過了第 ${currentRound} 輪的難關！\n總共集滿了 ${currentRound * 10} 點！\n快去找爸爸媽媽換超級大禮物囉！！！🎁✨\n下一關會自動加入更可愛的新徽章和新難度唷，加油！`);
+                    alert(`👑 🎉 哇啊啊啊！太驚人了！！！\n妳成功闖過了第 ${currentRound} 輪的難關！\n總共集滿了 ${currentRound * 10} 點！\n快去找爸爸媽媽換超級大禮物囉！！！🎁✨`);
                 } else {
-                    alert(`🎉 太棒了！妳表現得超級好！\n獲得了一個全新徽章【${newBadge.icon} ${newBadge.name}】！\n離換大禮物又更近一步囉！`);
+                    alert(`🎉 太棒了！妳表現得超級好！\n獲得了一個全新徽章【${newBadge.icon} ${newBadge.name}】！`);
                 }
             }, 300);
+        }
+
+        // 🔧 爸媽補救按鈕邏輯：自動把重複的魔法棒換成別的！
+        function fixDuplicateBadges() {
+            if (collectedBadges.length < 2) return;
+            
+            let hasChange = false;
+            // 從前往後檢查，如果發現有重複的名字，就把後面的換掉
+            for (let i = 0; i < collectedBadges.length; i++) {
+                for (let j = i + 1; j < collectedBadges.length; j++) {
+                    if (collectedBadges[i].name === collectedBadges[j].name) {
+                        // 找到目前沒在裡面的 round1 徽章來換
+                        const currentNames = collectedBadges.map(b => b.name);
+                        const candidates = BADGE_POOL.round1.filter(b => !currentNames.includes(b.name));
+                        
+                        if (candidates.length > 0) {
+                            collectedBadges[j] = candidates[0]; // 換掉重複的
+                            hasChange = true;
+                        }
+                    }
+                }
+            }
+            
+            if (hasChange) {
+                localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
+                updateUI();
+                alert("✨ 修正成功！已經把重複的【魔法神棒】神奇地變成別的新徽章囉！快去展示櫃看看！");
+            } else {
+                alert("目前展示櫃裡很完美，沒有重複的徽章唷！");
+            }
         }
 
         function updateUI() {
