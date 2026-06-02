@@ -42,7 +42,7 @@
 
         .progress-box { background: white; border-radius: 20px; padding: 15px; max-width: 470px; margin: 0 auto 25px auto; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid #FFE0E6; }
         .progress-text { font-size: 1rem; font-weight: bold; margin-bottom: 10px; color: #555; }
-        .star-row { display: flex; justify-content: center; font-size: 1.6rem; margin-bottom: 5px; flex-wrap: wrap; gap: 5px; }
+        .star-row { display: flex; justify-content: center; font-size: 1.8rem; margin-bottom: 5px; flex-wrap: wrap; gap: 10px; }
         .star-slot { color: #E0E0E0; transition: all 0.3s; transform: scale(0.9); }
         .star-slot.active { color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.6); animation: pop 0.3s ease-in-out; transform: scale(1.1); }
 
@@ -107,7 +107,13 @@
 
     <div class="progress-box">
         <div class="progress-text" id="progressText">🌟 再得到 5 顆星星就可以抽徽章囉！</div>
-        <div class="star-row" id="starRow"></div>
+        <div class="star-row" id="starRow">
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+            <div class="star-slot">☆</div>
+        </div>
     </div>
 
     <div class="section-title">
@@ -123,7 +129,7 @@
         <div class="admin-title">🛠️ 爸爸媽媽測試控制台</div>
         <button class="admin-btn" onclick="testUnlockTasks()">🔓 解鎖今日任務</button>
         <button class="admin-btn" onclick="testFastAddStar()">⭐ 快速直接+1星</button>
-        <button class="admin-btn warning" onclick="fixDuplicateBadges()">🔧 修正重複徽章（直接把魔法棒變走）</button>
+        <button class="admin-btn warning" onclick="fixDuplicateBadges()">🔧 修正重複徽章</button>
         <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置</button>
     </div>
 
@@ -162,12 +168,14 @@
 
         updateUI();
 
-        function getCurrentRound() {
-            return Math.floor(collectedBadges.length / 10) + 1;
-        }
-
-        function getRequiredStars() {
-            return getCurrentRound() * 5; 
+        // 🧠 核心邏輯：配合妳的換大禮物點數規則 (第1輪10點換=2個徽章, 第2輪20點換=再加4個徽章, 第3輪30點換=再加6個徽章...)
+        // 算出當前屬於第幾輪大禮物挑戰
+        function getCurrentGiftRound() {
+            const count = collectedBadges.length;
+            if (count < 2) return 1;       // 0~1 個徽章：第一輪 (目標集滿 2 個 = 10點)
+            if (count < 6) return 2;       // 2~5 個徽章：第二輪 (目標再集 4 個 = 20點)
+            if (count < 12) return 3;      // 6~11 個徽章：第三輪 (目標再集 6 個 = 30點)
+            return Math.floor((count - 12) / 8) + 4; // 後續以此類推
         }
 
         function toggleTask(taskId) {
@@ -180,9 +188,8 @@
 
         function addStar() {
             currentStars++;
-            const requiredStars = getRequiredStars();
-
-            if (currentStars >= requiredStars) {
+            // 🌟 核心修改：抽卡門檻永遠調回 5 顆星！
+            if (currentStars >= 5) {
                 currentStars = 0;
                 localStorage.setItem('baby_stars_count', currentStars);
                 playSound('sndSuccess');
@@ -193,21 +200,22 @@
             }
         }
 
-        // 🧠 強力防重複演算法：嚴格檢查「目前這一整輪」的所有歷史紀錄
         function rewardBadge() {
-            const currentRound = getCurrentRound();
+            const giftRound = getCurrentGiftRound();
             
+            // 根據大禮物輪數決定卡池豐富度
             let availablePool = [...BADGE_POOL.round1];
-            if (currentRound >= 2) availablePool = availablePool.concat(BADGE_POOL.round2);
-            if (currentRound >= 3) availablePool = availablePool.concat(BADGE_POOL.round3Plus);
+            if (giftRound >= 2) availablePool = availablePool.concat(BADGE_POOL.round2);
+            if (giftRound >= 3) availablePool = availablePool.concat(BADGE_POOL.round3Plus);
 
-            // 【終極防線】算出這輪的起始點。例如：現在有 6 個徽章，這輪起點是 0；若有 12 個，這輪起點是 10。
-            const roundStartIndex = Math.floor(collectedBadges.length / 10) * 10;
-            // 抓出「這輪已經存在」的所有徽章名字
-            const thisRoundCollectedNames = collectedBadges.slice(roundStartIndex).map(b => b.name);
+            // 抓出「當前這一階段」已經抽到的徽章，確保不重複
+            let stageStart = 0;
+            if (giftRound === 2) stageStart = 2;
+            if (giftRound === 3) stageStart = 6;
+            if (giftRound >= 4) stageStart = 12;
 
-            // 過濾掉任何已經在這輪出現過的名字
-            let uncollected = availablePool.filter(badge => !thisRoundCollectedNames.includes(badge.name));
+            const thisStageCollectedNames = collectedBadges.slice(stageStart).map(b => b.name);
+            let uncollected = availablePool.filter(badge => !thisStageCollectedNames.includes(badge.name));
 
             if (uncollected.length === 0) uncollected = availablePool;
 
@@ -221,42 +229,18 @@
             confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 } });
 
             setTimeout(() => {
-                if (collectedBadges.length % 10 === 0) {
-                    alert(`👑 🎉 哇啊啊啊！太驚人了！！！\n妳成功闖過了第 ${currentRound} 輪的難關！\n總共集滿了 ${currentRound * 10} 點！\n快去找爸爸媽媽換超級大禮物囉！！！🎁✨`);
+                const count = collectedBadges.length;
+                // 檢查是否剛好達到換禮物的門檻（2個、6個、12個徽章）
+                if (count === 2) {
+                    alert(`👑 🎉 太棒了！！！\n妳成功集滿了第一輪的 10 點（2個徽章）！\n快去找爸爸媽媽換第一輪的大禮物囉！！！🎁✨\n下一關開啟第二輪（目標集 20 點），會加入新徽章唷！`);
+                } else if (count === 6) {
+                    alert(`👑 🎉 哇啊啊！不可思議！！！\n妳成功集滿了第二輪的 20 點（再得 4 個徽章）！\n快去找爸爸媽媽換第二輪的超級大禮物囉！！！🎁🧸\n下一關開啟第三輪（目標集 30 點）！`);
+                } else if (count === 12) {
+                    alert(`👑 🎉 天啊！妳是榮譽小達人！！！\n妳成功集滿了第三輪的 30 點（再得 6 個徽章）！\n快去抱抱爸爸媽媽換究極大禮物囉！！！🎁✨`);
                 } else {
-                    alert(`🎉 太棒了！妳表現得超級好！\n獲得了一個全新徽章【${newBadge.icon} ${newBadge.name}】！`);
+                    alert(`🎉 太棒了！妳表現得超級好！\n獲得了一個全新徽章【${newBadge.icon} ${newBadge.name}】！\n明天也要繼續加油唷！`);
                 }
             }, 300);
-        }
-
-        // 🔧 爸媽補救按鈕邏輯：自動把重複的魔法棒換成別的！
-        function fixDuplicateBadges() {
-            if (collectedBadges.length < 2) return;
-            
-            let hasChange = false;
-            // 從前往後檢查，如果發現有重複的名字，就把後面的換掉
-            for (let i = 0; i < collectedBadges.length; i++) {
-                for (let j = i + 1; j < collectedBadges.length; j++) {
-                    if (collectedBadges[i].name === collectedBadges[j].name) {
-                        // 找到目前沒在裡面的 round1 徽章來換
-                        const currentNames = collectedBadges.map(b => b.name);
-                        const candidates = BADGE_POOL.round1.filter(b => !currentNames.includes(b.name));
-                        
-                        if (candidates.length > 0) {
-                            collectedBadges[j] = candidates[0]; // 換掉重複的
-                            hasChange = true;
-                        }
-                    }
-                }
-            }
-            
-            if (hasChange) {
-                localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
-                updateUI();
-                alert("✨ 修正成功！已經把重複的【魔法神棒】神奇地變成別的新徽章囉！快去展示櫃看看！");
-            } else {
-                alert("目前展示櫃裡很完美，沒有重複的徽章唷！");
-            }
         }
 
         function updateUI() {
@@ -266,14 +250,15 @@
             document.getElementById('task_toys').className = 'task-card' + (taskState.task_toys ? ' completed' : '');
             document.getElementById('task_sleep').className = 'task-card' + (taskState.task_sleep ? ' completed' : '');
 
-            const currentRound = getCurrentRound();
-            const requiredStars = getRequiredStars();
+            const giftRound = getCurrentGiftRound();
+            
+            // 顯示目前是在大禮物的第幾輪
+            document.getElementById('roundLevelLabel').innerText = `大禮物第 ${giftRound} 輪`;
 
-            document.getElementById('roundLevelLabel').innerText = `第 ${currentRound} 輪 (Lv.${currentRound})`;
-
+            // 🌟 星星格子永遠固定顯示 5 個
             const starRow = document.getElementById('starRow');
             starRow.innerHTML = '';
-            for (let index = 0; index < requiredStars; index++) {
+            for (let index = 0; index < 5; index++) {
                 const slot = document.createElement('div');
                 if (index < currentStars) {
                     slot.className = 'star-slot active'; slot.innerText = '★';
@@ -283,7 +268,7 @@
                 starRow.appendChild(slot);
             }
 
-            document.getElementById('progressText').innerText = `🌟 再得到 ${requiredStars - currentStars} 顆星星就可以抽徽章囉！`;
+            document.getElementById('progressText').innerText = `🌟 再得到 ${5 - currentStars} 顆星星就可以抽徽章囉！`;
 
             const badgeGrid = document.getElementById('badgeGrid');
             const emptyMessage = document.getElementById('emptyMessage');
@@ -308,6 +293,30 @@
                 const snd = document.getElementById(audioId);
                 if (snd) { snd.currentTime = 0; snd.play().catch(err => console.log(err)); }
             } catch (e) { console.log(e); }
+        }
+
+        function fixDuplicateBadges() {
+            if (collectedBadges.length < 2) return;
+            let hasChange = false;
+            for (let i = 0; i < collectedBadges.length; i++) {
+                for (let j = i + 1; j < collectedBadges.length; j++) {
+                    if (collectedBadges[i].name === collectedBadges[j].name) {
+                        const currentNames = collectedBadges.map(b => b.name);
+                        const candidates = BADGE_POOL.round1.concat(BADGE_POOL.round2).filter(b => !currentNames.includes(b.name));
+                        if (candidates.length > 0) {
+                            collectedBadges[j] = candidates[0];
+                            hasChange = true;
+                        }
+                    }
+                }
+            }
+            if (hasChange) {
+                localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
+                updateUI();
+                alert("✨ 修正成功！");
+            } else {
+                alert("目前展示櫃裡很完美，沒有重複的徽章唷！");
+            }
         }
 
         function testUnlockTasks() {
