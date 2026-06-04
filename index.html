@@ -28,15 +28,35 @@
         .subtitle { font-size: 1rem; color: #666; margin-bottom: 20px; }
         
         .section-title { font-size: 1.2rem; font-weight: bold; color: var(--primary-color); text-align: left; max-width: 500px; margin: 10px auto; padding-left: 10px; }
-        .task-container { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 25px; }
+        .task-container { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 25px; }
+        
+        /* 🛠️ 稍微調整寬度並確保內容不溢出 */
         .task-card {
-            background: white; border: 3px solid #FFE0E6; border-radius: 20px; padding: 12px 8px; width: 85px;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; position: relative;
+            background: white; border: 3px solid #FFE0E6; border-radius: 20px; 
+            padding: 12px 4px; width: 88px; min-height: 90px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; 
+            position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-sizing: border-box;
         }
         .task-card:active { transform: scale(0.95); }
         .task-card.completed { background: #E8F5E9; border-color: #81C784; opacity: 0.8; }
-        .task-icon { font-size: 2.2rem; margin-bottom: 5px; }
-        .task-name { font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+        .task-icon { font-size: 2rem; margin-bottom: 4px; }
+        
+        /* 🛠️ 拿掉不換行的限制，改為置中並微調預設字型大小 */
+        .task-name { 
+            font-size: 0.85rem; 
+            font-weight: bold; 
+            line-height: 1.2;
+            word-break: break-all;
+            text-align: center;
+            padding: 0 2px;
+        }
+        
+        /* 🛠️ 專門給字數較多的標籤，自動縮小字體防止溢出 */
+        .task-name.long-text {
+            font-size: 0.75rem;
+        }
+
         .check-badge { position: absolute; top: -5px; right: -5px; background: #4CAF50; color: white; border-radius: 50%; width: 22px; height: 22px; display: none; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; border: 2px solid white; }
         .task-card.completed .check-badge { display: flex; }
 
@@ -102,7 +122,7 @@
         <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置</button>
     </div>
 
-    <script>
+    <script {nonce}>
         const BADGE_POOL = {
             round1: [
                 { icon: '👸', name: '白雪公主' }, { icon: '🧜‍♀️', name: '美人魚' }, 
@@ -127,7 +147,7 @@
             ]
         };
 
-        // 📅 週間任務：上學作息 (6個任務)
+        // 📅 週間任務 (維持原樣)
         const WEEKDAY_TASKS = [
             { id: 'task_bus', icon: '🚌', name: '趕上娃娃車' },
             { id: 'task_teeth', icon: '🦷', name: '乖乖刷牙' },
@@ -137,14 +157,14 @@
             { id: 'task_sleep', icon: '🛏️', name: '乖乖睡覺' }
         ];
 
-        // 🎉 週末任務：媽媽指定進化版 (也是6個任務)
+        // 🎉 週末任務 (🛠️ 精簡字數，排版更好看)
         const WEEKEND_TASKS = [
             { id: 'task_talk', icon: '💬', name: '好好說話不生氣' },
             { id: 'task_vege_sit', icon: '🥦', name: '蔬菜吃光乖乖坐好' },
             { id: 'task_shopping', icon: '🛍️', name: '陪爸媽逛街有耐心' },
             { id: 'task_teeth', icon: '🦷', name: '乖乖刷牙' },
             { id: 'task_bath', icon: '🛁', name: '開心洗澡' },
-            { id: 'task_sleep_early', icon: '💤', name: '早點睡覺' }
+            { id: 'task_sleep_early', icon: '💤', name: '早點睡記' }
         ];
 
         let currentStars = parseInt(localStorage.getItem('baby_stars_count')) || 0;
@@ -168,7 +188,6 @@
             return (day === 0 || day === 6); 
         }
 
-        // 🧠 平日和週末現在都是 6 個任務，所以都需要 6 顆星抽獎
         function getMaxStarsNeeded() {
             return 6;
         }
@@ -269,10 +288,14 @@
                 const btn = document.createElement('button');
                 btn.className = 'task-card' + (isDone ? ' completed' : '');
                 btn.onclick = () => toggleTask(task.id);
+                
+                // 🛠️ 判斷中文字數，超過 5 個字就自動加上 .long-text 來縮小字體
+                const textClass = task.name.length >= 5 ? 'task-name long-text' : 'task-name';
+                
                 btn.innerHTML = `
                     <div class="check-badge">✓</div>
                     <div class="task-icon">${task.icon}</div>
-                    <div class="task-name">${task.name}</div>
+                    <div class="${textClass}">${task.name}</div>
                 `;
                 container.appendChild(btn);
             });
@@ -294,63 +317,4 @@
 
             document.getElementById('progressText').innerText = `🌟 再得到 ${maxStars - currentStars} 顆星星就可以抽徽章囉！`;
 
-            const badgeGrid = document.getElementById('badgeGrid');
-            const emptyMessage = document.getElementById('emptyMessage');
-            document.getElementById('badgeCount').innerText = collectedBadges.length;
-
-            badgeGrid.innerHTML = '';
-            if (collectedBadges.length === 0) {
-                emptyMessage.style.display = 'block';
-                emptyMessage.innerText = `哇！全新開啟【第 ${currentRound} 輪】挑戰！目前展示櫃亮晶晶，一起努力集滿 ${target} 個新徽章吧！✨`;
-            } else {
-                emptyMessage.style.display = 'none';
-                collectedBadges.forEach(badge => {
-                    const badgeEl = document.createElement('div');
-                    badgeEl.className = 'collected-badge';
-                    badgeEl.innerHTML = `<div>${badge.icon}</div><div class="badge-label">${badge.name}</div>`;
-                    badgeGrid.appendChild(badgeEl);
-                });
-            }
-        }
-
-        function playSound(audioId) {
-            try {
-                const snd = document.getElementById(audioId);
-                if (snd) { snd.currentTime = 0; snd.play().catch(err => console.log(err)); }
-            } catch (e) { console.log(e); }
-        }
-
-        function testToggleWeekendMode() {
-            if (forceWeekendMode === null) {
-                forceWeekendMode = true;
-                alert("已切換至【週末模式】：包含逛街有耐心、吃飯乖乖坐好、好好說話等 6 個週末任務！");
-            } else if (forceWeekendMode === true) {
-                forceWeekendMode = false;
-                alert("已切換至【週間模式】：還原為上學常規任務！");
-            } else {
-                forceWeekendMode = null;
-                alert("已恢復【系統自動判斷】：網頁會根據真實日期自己切換任務！");
-            }
-            currentStars = 0;
-            updateUI();
-        }
-
-        function testUnlockTasks() {
-            taskState = { date: new Date().toDateString() };
-            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
-            updateUI();
-        }
-
-        function testFastAddStar() { playSound('sndPop'); addStar(); }
-
-        function testResetAll() {
-            if(confirm("確定要清除所有測試徽章與點數，完全重新開始嗎？")) {
-                currentStars = 0; collectedBadges = []; currentRound = 1; forceWeekendMode = null;
-                taskState = { date: new Date().toDateString() };
-                localStorage.clear();
-                updateUI();
-            }
-        }
-    </script>
-</body>
-</html>
+            const badgeGrid
