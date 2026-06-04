@@ -74,46 +74,15 @@
     <audio id="sndSuccess" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-84.wav" preload="auto"></audio>
 
     <h1>👑 寶貝的榮譽徽章收藏館 👑</h1>
-    <div class="subtitle">每天做好生活小事情，就能累積星星換美麗徽章唷！</div>
+    <div class="subtitle" id="modeSubtitle">載入中...</div>
 
     <div class="section-title">✨ 今日好習慣挑戰</div>
-    <div class="task-container">
-        <button class="task-card" id="task_teeth" onclick="toggleTask('task_teeth')">
-            <div class="check-badge">✓</div>
-            <div class="task-icon">🦷</div>
-            <div class="task-name">乖乖刷牙</div>
-        </button>
-        <button class="task-card" id="task_bath" onclick="toggleTask('task_bath')">
-            <div class="check-badge">✓</div>
-            <div class="task-icon">🛁</div>
-            <div class="task-name">開心洗澡</div>
-        </button>
-        <button class="task-card" id="task_eat" onclick="toggleTask('task_eat')">
-            <div class="check-badge">✓</div>
-            <div class="task-icon">🥣</div>
-            <div class="task-name">把飯吃光</div>
-        </button>
-        <button class="task-card" id="task_toys" onclick="toggleTask('task_toys')">
-            <div class="check-badge">✓</div>
-            <div class="task-icon">🧸</div>
-            <div class="task-name">收拾玩具</div>
-        </button>
-        <button class="task-card" id="task_sleep" onclick="toggleTask('task_sleep')">
-            <div class="check-badge">✓</div>
-            <div class="task-icon">🛏️</div>
-            <div class="task-name">乖乖睡覺</div>
-        </button>
-    </div>
+    <div class="task-container" id="taskContainer">
+        </div>
 
     <div class="progress-box">
-        <div class="progress-text" id="progressText">🌟 再得到 5 顆星星就可以抽徽章囉！</div>
-        <div class="star-row" id="starRow">
-            <div class="star-slot">☆</div>
-            <div class="star-slot">☆</div>
-            <div class="star-slot">☆</div>
-            <div class="star-slot">☆</div>
-            <div class="star-slot">☆</div>
-        </div>
+        <div class="progress-text" id="progressText">🌟 再得到幾顆星星就可以抽徽章囉！</div>
+        <div class="star-row" id="starRow"></div>
     </div>
 
     <div class="section-title">
@@ -129,7 +98,7 @@
         <div class="admin-title">🛠️ 爸爸媽媽測試控制台</div>
         <button class="admin-btn" onclick="testUnlockTasks()">🔓 解鎖今日任務</button>
         <button class="admin-btn" onclick="testFastAddStar()">⭐ 快速直接+1星</button>
-        <button class="admin-btn warning" onclick="testJumpToRound2()">🚀 爸媽手動：直升第二輪並清空櫃子</button>
+        <button class="admin-btn warning" onclick="testToggleWeekendMode()">切换測試：週末 / 週間任務清單</button>
         <button class="admin-btn danger" onclick="testResetAll()">🧹 徹底重置</button>
     </div>
 
@@ -158,27 +127,56 @@
             ]
         };
 
-        // 🧠 全新資料結構：將歷史大禮物輪數 (currentRound) 與目前展示櫃裡的徽章 (collectedBadges) 分開
+        // 📅 週間任務：上學作息 (6個任務)
+        const WEEKDAY_TASKS = [
+            { id: 'task_bus', icon: '🚌', name: '趕上娃娃車' },
+            { id: 'task_teeth', icon: '🦷', name: '乖乖刷牙' },
+            { id: 'task_bath', icon: '🛁', name: '開心洗澡' },
+            { id: 'task_eat', icon: '🥣', name: '把飯吃光' },
+            { id: 'task_toys', icon: '🧸', name: '收拾玩具' },
+            { id: 'task_sleep', icon: '🛏️', name: '乖乖睡覺' }
+        ];
+
+        // 🎉 週末任務：媽媽指定進化版 (也是6個任務)
+        const WEEKEND_TASKS = [
+            { id: 'task_talk', icon: '💬', name: '好好說話不生氣' },
+            { id: 'task_vege_sit', icon: '🥦', name: '蔬菜吃光乖乖坐好' },
+            { id: 'task_shopping', icon: '🛍️', name: '陪爸媽逛街有耐心' },
+            { id: 'task_teeth', icon: '🦷', name: '乖乖刷牙' },
+            { id: 'task_bath', icon: '🛁', name: '開心洗澡' },
+            { id: 'task_sleep_early', icon: '💤', name: '早點睡覺' }
+        ];
+
         let currentStars = parseInt(localStorage.getItem('baby_stars_count')) || 0;
         let collectedBadges = JSON.parse(localStorage.getItem('baby_badges_list')) || [];
         let currentRound = parseInt(localStorage.getItem('baby_game_round')) || 1;
-        let taskState = JSON.parse(localStorage.getItem('baby_tasks_today')) || { date: '', task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+        let taskState = JSON.parse(localStorage.getItem('baby_tasks_today')) || { date: '' };
 
-        // 舊版本資料相容相容性修正：如果偵測到是舊用戶，自動幫他們處理好展示櫃
-        if (localStorage.getItem('baby_game_round') === null && collectedBadges.length >= 10) {
-            currentRound = 2;
-            localStorage.setItem('baby_game_round', currentRound);
-        }
+        let forceWeekendMode = null; 
 
         const todayStr = new Date().toDateString();
         if (taskState.date !== todayStr) {
-            taskState = { date: todayStr, task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+            taskState = { date: todayStr }; 
             localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
         }
 
         updateUI();
 
-        // 🧠 取得當前大禮物挑戰的總目標徽章數
+        function isWeekend() {
+            if (forceWeekendMode !== null) return forceWeekendMode;
+            const day = new Date().getDay();
+            return (day === 0 || day === 6); 
+        }
+
+        // 🧠 平日和週末現在都是 6 個任務，所以都需要 6 顆星抽獎
+        function getMaxStarsNeeded() {
+            return 6;
+        }
+
+        function getCurrentTaskPool() {
+            return isWeekend() ? WEEKEND_TASKS : WEEKDAY_TASKS;
+        }
+
         function getTargetBadgeCount() {
             if (currentRound === 1) return 10;
             if (currentRound === 2) return 15;
@@ -195,8 +193,10 @@
 
         function addStar() {
             currentStars++;
-            if (currentStars >= 5) {
-                currentStars = 0;
+            const maxStars = getMaxStarsNeeded();
+            
+            if (currentStars >= maxStars) {
+                currentStars = 0; 
                 localStorage.setItem('baby_stars_count', currentStars);
                 playSound('sndSuccess');
                 setTimeout(rewardBadge, 600);
@@ -211,7 +211,6 @@
             if (currentRound >= 2) availablePool = availablePool.concat(BADGE_POOL.round2);
             if (currentRound >= 3) availablePool = availablePool.concat(BADGE_POOL.round3Plus);
 
-            // 🧠 絕對防重複：直接檢查目前「新展示櫃」裡的徽章，保證這輪不重複
             const currentNames = collectedBadges.map(b => b.name);
             let uncollected = availablePool.filter(badge => !currentNames.includes(badge.name));
 
@@ -229,25 +228,21 @@
             setTimeout(() => {
                 const target = getTargetBadgeCount();
                 
-                // 🧠 當集滿當輪目標，跳出通知，並在按下確認後「完全清空櫃子、自動升級」！
                 if (collectedBadges.length >= target) {
                     if (currentRound === 1) {
                         alert(`👑 🎉 哇啊啊啊！太厲害了！！！\n妳成功集滿了第一輪的 10 個徽章！\n快去找媽媽換第一輪的大禮物囉！！！🎁✨`);
-                        // 淨空櫃子，升級到第二輪
-                        currentRound = 2;
-                        collectedBadges = [];
+                        currentRound = 2; collectedBadges = [];
                     } else if (currentRound === 2) {
                         alert(`👑 🎉 超級大恭喜！！！\n妳成功集滿了第二輪的 15 個徽章！\n快去找媽媽換第二輪的超級大禮物囉！！！🎁🧸`);
-                        currentRound = 3;
-                        collectedBadges = [];
+                        currentRound = 3; collectedBadges = [];
                     } else {
                         alert(`👑 🎉 天啊！妳是全宇宙最強榮譽小達人！！！\n妳成功集滿了第三輪的 20 個徽章！\n快去抱抱媽媽換究極無敵大禮物囉！！！🎁👑🌟`);
-                        currentRound = 4;
-                        collectedBadges = [];
+                        currentRound = 4; collectedBadges = [];
                     }
-                    
+                    currentStars = 0;
                     localStorage.setItem('baby_game_round', currentRound);
                     localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
+                    localStorage.setItem('baby_stars_count', currentStars);
                     updateUI();
                 } else {
                     alert(`🎉 太棒了！妳表現得超級好！\n獲得了一個全新徽章【${newBadge.icon} ${newBadge.name}】！\n離大禮物更近一步囉！`);
@@ -256,20 +251,38 @@
         }
 
         function updateUI() {
-            document.getElementById('task_teeth').className = 'task-card' + (taskState.task_teeth ? ' completed' : '');
-            document.getElementById('task_bath').className = 'task-card' + (taskState.task_bath ? ' completed' : '');
-            document.getElementById('task_eat').className = 'task-card' + (taskState.task_eat ? ' completed' : '');
-            document.getElementById('task_toys').className = 'task-card' + (taskState.task_toys ? ' completed' : '');
-            document.getElementById('task_sleep').className = 'task-card' + (taskState.task_sleep ? ' completed' : '');
+            const weekend = isWeekend();
+            const maxStars = getMaxStarsNeeded();
+            const currentTasks = getCurrentTaskPool();
+
+            if (weekend) {
+                document.getElementById('modeSubtitle').innerText = `🎉 歡樂週末假期！集滿 6 顆週末任務星星就能抽徽章唷！`;
+            } else {
+                document.getElementById('modeSubtitle').innerText = `🌅 活力滿滿讀書週！加油趕上娃娃車，拿滿 6 星抽徽章！`;
+            }
+
+            const container = document.getElementById('taskContainer');
+            container.innerHTML = '';
+            
+            currentTasks.forEach(task => {
+                const isDone = !!taskState[task.id];
+                const btn = document.createElement('button');
+                btn.className = 'task-card' + (isDone ? ' completed' : '');
+                btn.onclick = () => toggleTask(task.id);
+                btn.innerHTML = `
+                    <div class="check-badge">✓</div>
+                    <div class="task-icon">${task.icon}</div>
+                    <div class="task-name">${task.name}</div>
+                `;
+                container.appendChild(btn);
+            });
 
             const target = getTargetBadgeCount();
-            
-            // 顯示目前第幾輪，以及「這一輪乾淨的進度」
             document.getElementById('roundLevelLabel').innerText = `第 ${currentRound} 輪 (進度: ${collectedBadges.length}/${target})`;
 
             const starRow = document.getElementById('starRow');
             starRow.innerHTML = '';
-            for (let index = 0; index < 5; index++) {
+            for (let index = 0; index < maxStars; index++) {
                 const slot = document.createElement('div');
                 if (index < currentStars) {
                     slot.className = 'star-slot active'; slot.innerText = '★';
@@ -279,7 +292,7 @@
                 starRow.appendChild(slot);
             }
 
-            document.getElementById('progressText').innerText = `🌟 再得到 ${5 - currentStars} 顆星星就可以抽徽章囉！`;
+            document.getElementById('progressText').innerText = `🌟 再得到 ${maxStars - currentStars} 顆星星就可以抽徽章囉！`;
 
             const badgeGrid = document.getElementById('badgeGrid');
             const emptyMessage = document.getElementById('emptyMessage');
@@ -307,22 +320,23 @@
             } catch (e) { console.log(e); }
         }
 
-        // 🚀 爸媽專用快捷鍵：如果她第一輪已經拿滿了、或想直接幫她手動跨入第二輪並淨空
-        function testJumpToRound2() {
-            if(confirm("確定要把大禮物進度設定為【第二輪】，並把展示櫃淨空重新開始嗎？")) {
-                currentRound = 2;
-                collectedBadges = [];
-                currentStars = 0;
-                localStorage.setItem('baby_game_round', currentRound);
-                localStorage.setItem('baby_badges_list', JSON.stringify(collectedBadges));
-                localStorage.setItem('baby_stars_count', currentStars);
-                updateUI();
-                alert("✨ 施展魔法成功！目前已正式切換至第二輪，展示櫃已全部淨空囉！");
+        function testToggleWeekendMode() {
+            if (forceWeekendMode === null) {
+                forceWeekendMode = true;
+                alert("已切換至【週末模式】：包含逛街有耐心、吃飯乖乖坐好、好好說話等 6 個週末任務！");
+            } else if (forceWeekendMode === true) {
+                forceWeekendMode = false;
+                alert("已切換至【週間模式】：還原為上學常規任務！");
+            } else {
+                forceWeekendMode = null;
+                alert("已恢復【系統自動判斷】：網頁會根據真實日期自己切換任務！");
             }
+            currentStars = 0;
+            updateUI();
         }
 
         function testUnlockTasks() {
-            taskState = { date: new Date().toDateString(), task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+            taskState = { date: new Date().toDateString() };
             localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
             updateUI();
         }
@@ -331,8 +345,8 @@
 
         function testResetAll() {
             if(confirm("確定要清除所有測試徽章與點數，完全重新開始嗎？")) {
-                currentStars = 0; collectedBadges = []; currentRound = 1;
-                taskState = { date: new Date().toDateString(), task_teeth: false, task_bath: false, task_eat: false, task_toys: false, task_sleep: false };
+                currentStars = 0; collectedBadges = []; currentRound = 1; forceWeekendMode = null;
+                taskState = { date: new Date().toDateString() };
                 localStorage.clear();
                 updateUI();
             }
