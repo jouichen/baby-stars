@@ -317,4 +317,63 @@
 
             document.getElementById('progressText').innerText = `🌟 再得到 ${maxStars - currentStars} 顆星星就可以抽徽章囉！`;
 
-            const badgeGrid
+            const badgeGrid = document.getElementById('badgeGrid');
+            const emptyMessage = document.getElementById('emptyMessage');
+            document.getElementById('badgeCount').innerText = collectedBadges.length;
+
+            badgeGrid.innerHTML = '';
+            if (collectedBadges.length === 0) {
+                emptyMessage.style.display = 'block';
+                emptyMessage.innerText = `哇！全新開啟【第 ${currentRound} 輪】挑戰！目前展示櫃亮晶晶，一起努力集滿 ${target} 個新徽章吧！✨`;
+            } else {
+                emptyMessage.style.display = 'none';
+                collectedBadges.forEach(badge => {
+                    const badgeEl = document.createElement('div');
+                    badgeEl.className = 'collected-badge';
+                    badgeEl.innerHTML = `<div>${badge.icon}</div><div class="badge-label">${badge.name}</div>`;
+                    badgeGrid.appendChild(badgeEl);
+                });
+            }
+        }
+
+        function playSound(audioId) {
+            try {
+                const snd = document.getElementById(audioId);
+                if (snd) { snd.currentTime = 0; snd.play().catch(err => console.log(err)); }
+            } catch (e) { console.log(e); }
+        }
+
+        function testToggleWeekendMode() {
+            if (forceWeekendMode === null) {
+                forceWeekendMode = true;
+                alert("已切換至【週末模式】：字體安全縮小防溢出測試中！");
+            } else if (forceWeekendMode === true) {
+                forceWeekendMode = false;
+                alert("已切換至【週間模式】！");
+            } else {
+                forceWeekendMode = null;
+                alert("已恢復【系統自動判斷】！");
+            }
+            currentStars = 0;
+            updateUI();
+        }
+
+        function testUnlockTasks() {
+            taskState = { date: new Date().toDateString() };
+            localStorage.setItem('baby_tasks_today', JSON.stringify(taskState));
+            updateUI();
+        }
+
+        function testFastAddStar() { playSound('sndPop'); addStar(); }
+
+        function testResetAll() {
+            if(confirm("確定要清除所有測試徽章與點數，完全重新開始嗎？")) {
+                currentStars = 0; collectedBadges = []; currentRound = 1; forceWeekendMode = null;
+                taskState = { date: new Date().toDateString() };
+                localStorage.clear();
+                updateUI();
+            }
+        }
+    </script>
+</body>
+</html>
